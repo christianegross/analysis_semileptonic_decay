@@ -1,0 +1,190 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r setup, include=FALSE}
+library("hadron")
+```
+
+Make a filelist
+```{r filelist}
+filelist <- getorderedfilelist(path="/home/gross/Documents/heavymesons/out_th0/", 
+        basename="b", ending="/mes_contr_H_C_S_H")
+filelist2 <- getorderedfilelist(path="/home/gross/Documents/heavymesons/out_th0/", 
+        basename="a", ending="/mes_contr_H_C_S_H")
+filelist <- c(filelist, filelist2)
+
+filelist <- substr(filelist, 1, nchar(filelist[1])-17)
+
+```
+
+Only 199 files, b712 (?) did not run properly, but maybe not worth the time to redo it because the signal is bad anyway
+Read in data for vector currents
+
+```{r readvectorcurrent}
+aa <- readnissatextcf(filelist, smear_combs_to_read=c("mes_contr_H_C_Dth0_A_C_P_H_H_S_H"), Time=128, 
+        corrtype="newcorr", combs_to_read=data.frame(op1_idx="C_H", op2_idx="Dth0_A0_C_P_H_H_S_H", spin_comb="A0P5"),
+        symmetrise=TRUE, sym.vec=c(1))
+aa <- bootstrap.cf(aa, boot.R=20)
+
+av <- readnissatextcf(filelist, smear_combs_to_read=c("mes_contr_H_C_Dth0_V_C_P_H_H_S_H"), Time=128, 
+        corrtype="newcorr", combs_to_read=data.frame(op1_idx="C_H", op2_idx="Dth0_V0_C_P_H_H_S_H", spin_comb="A0P5"),
+        symmetrise=TRUE, sym.vec=c(1))
+av <- bootstrap.cf(av, boot.R=20)
+
+va <- readnissatextcf(filelist, smear_combs_to_read=c("mes_contr_H_C_Dth0_A_C_P_H_H_S_H"), Time=128, 
+        corrtype="newcorr", combs_to_read=data.frame(op1_idx="C_H", op2_idx="Dth0_A0_C_P_H_H_S_H", spin_comb="V0P5"),
+        symmetrise=TRUE, sym.vec=c(1))
+va <- bootstrap.cf(va, boot.R=20)
+
+vv <- readnissatextcf(filelist, smear_combs_to_read=c("mes_contr_H_C_Dth0_V_C_P_H_H_S_H"), Time=128, 
+        corrtype="newcorr", combs_to_read=data.frame(op1_idx="C_H", op2_idx="Dth0_V0_C_P_H_H_S_H", spin_comb="V0P5"),
+        symmetrise=TRUE, sym.vec=c(1))
+vv <- bootstrap.cf(vv, boot.R=20)
+
+```
+
+Combine to one big correlatorand determine effective mass
+
+```{r combinecf}
+plusterms <- add.cf(aa, vv)
+minusterms <- add.cf(av, va)
+czerozero <- add.cf(plusterms, minusterms, a=1., b=-1.)
+effmass <- bootstrap.effectivemass(czerozero, type="solve")
+
+```
+
+
+plot results
+```{r plot1}
+
+pdf("tryreadin.pdf", title="")
+plot(aa, log="y", main="AA", xlab="t/a", ylab="A_0A_0")
+plot(av, log="y", main="AV", xlab="t/a", ylab="A_0V_0")
+plot(va, log="y", main="VA", xlab="t/a", ylab="V_0A_0")
+plot(vv, log="y", main="VV", xlab="t/a", ylab="V_0V_0")
+plot(czerozero, log="y")
+plot(effmass)
+
+```
+
+define function for arbitrary mu, nu
+```{r}
+getcmunu <- function(filellist, Time=128, mu=0, nu=0, boot.R=100){
+aa <- readnissatextcf(filelist, smear_combs_to_read=c("mes_contr_H_C_Dth0_A_C_P_H_H_S_H"), Time=Time, 
+        corrtype="newcorr", symmetrise=TRUE, sym.vec=c(1), 
+        combs_to_read=data.frame(op1_idx="C_H", op2_idx=paste("Dth0_A", nu, "_C_P_H_H_S_H", sep=""), spin_comb=paste("A", mu, "P5", sep="")))
+aa <- bootstrap.cf(aa, boot.R=boot.R)
+
+av <- readnissatextcf(filelist, smear_combs_to_read=c("mes_contr_H_C_Dth0_V_C_P_H_H_S_H"), Time=Time, 
+        corrtype="newcorr", symmetrise=TRUE, sym.vec=c(1), 
+        combs_to_read=data.frame(op1_idx="C_H", op2_idx=paste("Dth0_V", nu, "_C_P_H_H_S_H", sep=""), spin_comb=paste("A", mu, "P5", sep="")))
+av <- bootstrap.cf(av, boot.R=boot.R)
+
+va <- readnissatextcf(filelist, smear_combs_to_read=c("mes_contr_H_C_Dth0_A_C_P_H_H_S_H"), Time=Time, 
+        corrtype="newcorr", symmetrise=TRUE, sym.vec=c(1), 
+        combs_to_read=data.frame(op1_idx="C_H", op2_idx=paste("Dth0_A", nu, "_C_P_H_H_S_H", sep=""), spin_comb=paste("V", mu, "P5", sep="")))
+va <- bootstrap.cf(va, boot.R=boot.R)
+
+vv <- readnissatextcf(filelist, smear_combs_to_read=c("mes_contr_H_C_Dth0_V_C_P_H_H_S_H"), Time=Time, 
+        corrtype="newcorr", symmetrise=TRUE, sym.vec=c(1), 
+        combs_to_read=data.frame(op1_idx="C_H", op2_idx=paste("Dth0_V", nu, "_C_P_H_H_S_H", sep=""), spin_comb=paste("V", mu, "P5", sep="")))
+vv <- bootstrap.cf(vv, boot.R=boot.R)
+
+
+plusterms <- add.cf(aa, vv)
+minusterms <- add.cf(av, va)
+cmunu <- add.cf(plusterms, minusterms, a=1., b=-1.)
+return (cmunu)
+}
+```
+
+
+
+```{r}
+#plot(czerozero, log="y")
+plot(getcmunu(filellist = filelist, mu=0, nu=0, boot.R=20), log="y")
+
+```
+
+```{r}
+scalarlocal <- readnissatextcf(filelist, smear_combs_to_read=c("/mes_contr_H_C_S_H"), Time=128,
+                corrtype="newcorr", combs_to_read=data.frame(op1_idx="C_H", op2_idx="S_H", spin_comb="P5P5"),
+                symmetrise=TRUE, sym.vec=c(1))
+scalarlocal <- bootstrap.cf(scalarlocal, boot.R=20)
+scalarsmeared <- readnissatextcf(filelist, smear_combs_to_read=c("/mes_contr_H_C_H_H_S_H"), Time=128,
+                corrtype="newcorr", combs_to_read=data.frame(op1_idx="C_H", op2_idx="H_H_S_H", spin_comb="P5P5"),
+                symmetrise=TRUE, sym.vec=c(1))
+scalarsmeared <- bootstrap.cf(scalarsmeared, boot.R=20)
+plot(scalarlocal, log="y")
+plot(scalarsmeared, log="y")
+```
+get two-point-functions, both smeared-local and smeared-smeared. Determine correlators, use effective mass to get a sense of boundaries forfollowing matrixfit
+
+```{r}
+scalarlocaleffmass <- bootstrap.effectivemass(scalarlocal)
+scalarsmearedeffmass <- bootstrap.effectivemass(scalarsmeared)
+plot(scalarlocaleffmass, ylim=c(0.79, 0.82))
+plot(scalarsmearedeffmass, ylim=c(0.79, 0.82))
+scalarlocaleffmass <- fit.effectivemass(scalarlocaleffmass, t1=20, t2=44)
+scalarsmearedeffmass <- fit.effectivemass(scalarsmearedeffmass, t1=14, t2=42)
+plot(scalarlocaleffmass, ylim=c(0.79, 0.82))
+plot(scalarsmearedeffmass, ylim=c(0.79, 0.82))
+```
+Do matrixfits to get to $m_c$, $Z$. Fits work only for useCov=FALSE, otherwise 
+Error in chol.default(M) : 
+  the leading minor of order 20 is not positive definite
+```{r}
+localmatrix <- matrixfit(scalarlocal, t1=22, t2=44, sym.vec=c("cosh"), useCov=FALSE)
+smearmatrix <- matrixfit(scalarsmeared, t1=14, t2=42, sym.vec=c("cosh"), useCov=FALSE)
+summary(localmatrix)
+summary(smearmatrix)
+```
+
+$$
+\begin{aligned}
+local &\to A_l A_s \exp(-m_c t)\\
+smeared &\to A_s A_s \exp(-m_c t)\\
+A_l &= \frac{A_l A_s}{\sqrt{A_s A_s}}
+\end{aligned}
+$$
+$t_2=48, t_{sink}=64 \Rightarrow t_{sink}-t_2=16 \Rightarrow C(t_{sink}-t_2)=C_{smeared}(16)$: 
+```{r}
+localamplitude_t0 <- localmatrix$t0[2]/sqrt(smearmatrix$t0[2])
+localamplitude_t <- localmatrix$t[,2]/sqrt(smearmatrix$t[,2])
+
+# localamplitude_t0
+# localamplitude_t
+# localmatrix$error_fn(localamplitude_t0)
+
+corrt2_t0 <- scalarsmeared$cf.tsboot$t0[16]
+corrt2_t <- scalarsmeared$cf.tsboot$t[, 16]
+
+# corrt2_t0
+# corrt2_t
+
+prefactor_t0 <- localamplitude_t0 / corrt2_t0
+prefactor_t <- localamplitude_t / corrt2_t
+
+prefactor_t0
+```
+
+get combined correlator by division
+```{r}
+combined <- czerozero / scalarsmeared
+plot(combined, log="y")
+```
+t2=48 (fixed), t_sink=64, t_src=0, t_1=1...63
+
+$C_{\mu\nu} \sim J_\muJ_\nu =(V_\mu-A_\mu)(V_\nu-A_\nu)$
+
+Multiply renormalization factors, C(t2): Multiply bootstrap by bootstrap. Only constant factor, can be done later.
+
+```{r multiply bootstrap}
+
+```
+
+
+
+
