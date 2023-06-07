@@ -7,81 +7,7 @@ output:
 
 ```{r setup, include=FALSE}
 library("hadron")
-```
-```{r}
-#' Do a complex division cf1 / cf2, taking real and imaginary part into account
-#' (a+bi) / (c+di) = ((a+bi)*(c-di)) / (c^2 + d^2) = ((ac-bd) + (bc-ad)i) / (c^2 + d^2)
-complexdivisionvlocal <- function(cf1, cf2){
-  stopifnot(inherits(cf1, 'cf_meta'))
-  stopifnot(inherits(cf2, 'cf_meta'))
-  cf <- cf1
-  if(inherits(cf1, 'cf_orig') && inherits(cf2, 'cf_orig')) {
-    stopifnot(all(dim(cf1$cf) == dim(cf2$cf)))
-    stopifnot(cf1$Time == cf2$Time)
-
-
-    if( has_icf(cf1) | has_icf(cf2) ){
-      stopifnot(has_icf(cf1) & has_icf(cf2))
-      divisor <- cf2$cf^2 + cf2$icf^2
-      print(head(divisor[, 1:5]))
-      print(head(cf1$cf[, 1:5] * cf2$cf[, 1:5]))
-      print(head(cf1$icf[, 1:5] * cf2$icf[, 1:5]))
-      cf$cf <- (cf1$cf * cf2$cf - cf1$icf * cf2$icf) / divisor
-      cf$icf <- (cf1$icf * cf2$cf - cf1$cf * cf2$icf) / divisor
-      ## the following is a bit dangerous, however, for
-      ## principal correlators this is the only way to
-      ## build a ratio
-      if(inherits(cf1, 'cf_boot') && inherits(cf2, 'cf_boot') &&
-         all(dim(cf1$cf.tsboot$t) == dim(cf2$cf.tsboot$t)) &&
-         cf1$seed == cf2$seed && cf1$boot.l == cf2$boot.l) {
-        
-        divisor <- cf2$cf.tsboot$t^2 + cf2$icf.tsboot$t^2
-        divisor0 <- cf2$cf.tsboot$t0^2 + cf2$icf.tsboot$t0^2
-        
-        cf$cf.tsboot$t  <- (cf1$cf.tsboot$t * cf2$cf.tsboot$t - cf1$icf.tsboot$t * cf2$icf.tsboot$t) / divisor
-        cf$cf.tsboot$t0  <- (cf1$cf.tsboot$t0 * cf2$cf.tsboot$t0 - cf1$icf.tsboot$t0 * cf2$icf.tsboot$t0) / divisor0
-        
-        cf$icf.tsboot$t  <- (cf1$cf.tsboot$t * cf2$icf.tsboot$t - cf1$cf.tsboot$t * cf2$icf.tsboot$t) / divisor
-        cf$icf.tsboot$t0  <- (cf1$cf.tsboot$t0 * cf2$icf.tsboot$t0 - cf1$cf.tsboot$t0 * cf2$icf.tsboot$t0) / divisor0
-        
-        cf$tsboot.se <- apply(cf$cf.tsboot$t, MARGIN = 2L, FUN = cf$error_fn)
-        cf$cf0 <- cf$cf.tsboot$t0
-        cf$itsboot.se <- apply(cf$icf.tsboot$t, MARGIN = 2L, FUN = cf$error_fn)
-        cf$icf0 <- cf$icf.tsboot$t0
-      }
-    } else {
-      cf <- cf1 / cf2
-    }
-  }
-  else cf <- invalidate.samples.cf(cf)
-  return (cf)
-}
-
-
-```
-```{r}
-multiplycfbootstrap <- function(cf, central, bootstraps){
-  cfnew <- cf
-  cfnew$cf <- cf$cf * central
-  if( has_icf(cf)){
-    cfnew$icf <- cf$icf * central
-  }
-  if(inherits(cf, 'cf_boot')){
-    cfnew$cf.tsboot$t  <- cf$cf.tsboot$t * bootstraps
-    cfnew$cf.tsboot$t0  <- cf$cf.tsboot$t0 * central
-    cfnew$tsboot.se <- apply(cfnew$cf.tsboot$t, MARGIN = 2L, FUN = cfnew$error_fn)
-    cfnew$cf0 <- cfnew$cf.tsboot$t0
-        
-    if( has_icf(cf)){
-      cfnew$icf.tsboot$t  <- cf$icf.tsboot$t * bootstraps
-      cfnew$icf.tsboot$t0  <- cf$icf.tsboot$t0 * central
-    
-      cfnew$itsboot.se <- apply(cfnew$icf.tsboot$t, MARGIN = 2L, FUN = cfnew$error_fn)
-      cfnew$icf0 <- cfnew$icf.tsboot$t0
-    }
-  }
-  return(cfnew)
-}
+source("morefunctions.R")
 ```
 
 Make a filelist
@@ -94,6 +20,9 @@ filelist <- c(filelist, filelist2)
 
 filelist <- substr(filelist, 1, nchar(filelist[1])-17)
 
+tsink <- 64
+tins <- 48
+
 ```
 
 Only 199 files, b712 (?) did not run properly, but maybe not worth the time to redo it because the signal is bad anyway
@@ -101,33 +30,34 @@ Read in data for vector currents
 
 
 define function for arbitrary mu, nu
+In Antonios note, he only mentions AA and VV, so take out mixed parts
+AA and VV are weighted with renormalizations factors
+reformulate Antonios note:
+
+$Y^2(t)=\frac{M_{D_s}}{\exp(M_{D_s}\cdot dt)}\frac{\hat{w}_0^2}{C_2(t)}\left(Z_V^2C_4^{V_0V_0}(t) + Z_A^2C_4^{A_0A_0}(t)\right)$
 ```{r}
 ##four point function is not symmetric, do not symmetrise, also take care of divison
-getcmunu <- function(filellist, Time=128, mu=0, nu=0, boot.R=100, print=FALSE, boot.l=10){
-aa <- readnissatextcf(filelist, smear_combs_to_read=c("mes_contr_H_C_Dth0_A_C_P_H_H_S_H"), Time=Time, 
+getcmunu <- function(filellist, Time=128, mu=0, nu=0, boot.R=100, print=FALSE, boot.l=10, ZA, ZV, dZA, dZV, theta = 0){
+aa <- readnissatextcf(filelist, smear_combs_to_read=c(paste("mes_contr_H_C_Dth", theta, "_A_C_P_H_H_S_H", sep="")), Time=Time, 
         corrtype="general", symmetrise=FALSE, sym.vec=c(1), 
-        combs_to_read=data.frame(op1_idx="C_H", op2_idx=paste("Dth0_A", mu, "_C_P_H_H_S_H", sep=""), spin_comb=paste("A", nu, "P5", sep="")))
+        combs_to_read=data.frame(op1_idx="C_H", op2_idx=paste("Dth", theta, "_A", mu, "_C_P_H_H_S_H", sep=""), spin_comb=paste("A", nu, "P5", sep="")))
 aa <- bootstrap.cf(aa, boot.R=boot.R, boot.l=boot.l)
 
-av <- readnissatextcf(filelist, smear_combs_to_read=c("mes_contr_H_C_Dth0_V_C_P_H_H_S_H"), Time=Time, 
+vv <- readnissatextcf(filelist, smear_combs_to_read=c(paste("mes_contr_H_C_Dth", theta, "_V_C_P_H_H_S_H", sep="")), Time=Time, 
         corrtype="general", symmetrise=FALSE, sym.vec=c(1), 
-        combs_to_read=data.frame(op1_idx="C_H", op2_idx=paste("Dth0_V", mu, "_C_P_H_H_S_H", sep=""), spin_comb=paste("A", nu, "P5", sep="")))
-av <- bootstrap.cf(av, boot.R=boot.R, boot.l=boot.l)
-
-va <- readnissatextcf(filelist, smear_combs_to_read=c("mes_contr_H_C_Dth0_A_C_P_H_H_S_H"), Time=Time, 
-        corrtype="general", symmetrise=FALSE, sym.vec=c(1), 
-        combs_to_read=data.frame(op1_idx="C_H", op2_idx=paste("Dth0_A", mu, "_C_P_H_H_S_H", sep=""), spin_comb=paste("V", nu, "P5", sep="")))
-va <- bootstrap.cf(va, boot.R=boot.R, boot.l=boot.l)
-
-vv <- readnissatextcf(filelist, smear_combs_to_read=c("mes_contr_H_C_Dth0_V_C_P_H_H_S_H"), Time=Time, 
-        corrtype="general", symmetrise=FALSE, sym.vec=c(1), 
-        combs_to_read=data.frame(op1_idx="C_H", op2_idx=paste("Dth0_V", mu, "_C_P_H_H_S_H", sep=""), spin_comb=paste("V", nu, "P5", sep="")))
+        combs_to_read=data.frame(op1_idx="C_H", op2_idx=paste("Dth", theta, "_V", mu, "_C_P_H_H_S_H", sep=""), spin_comb=paste("V", nu, "P5", sep="")))
 vv <- bootstrap.cf(vv, boot.R=boot.R, boot.l=boot.l)
+
+bootstrapZA <- parametric.bootstrap(boot.R, c(ZA), c(dZA))
+bootstrapZV <- parametric.bootstrap(boot.R, c(ZV), c(dZV))
+# print(dim(bootstrapZA))
+# print(dim(aa$cf.tsboot$t))
+
+aa <- multiplycfbootstrap(cf=aa, central=ZA^2, bootstraps=bootstrapZA^2)
+vv <- multiplycfbootstrap(cf=vv, central=ZV^2, bootstraps=bootstrapZV^2)
 
 
 plusterms <- add.cf(aa, vv)
-minusterms <- add.cf(av, va)
-cmunu <- add.cf(plusterms, minusterms, a=1., b=-1.)
 if(print){
 print("vv")
 print(vv$cf.tsboot$t0)
@@ -135,34 +65,28 @@ print("vv-error")
 print(vv$cf.tsboot$se)
 print("aa")
 print(aa$cf.tsboot$t0)
-print("av")
-print(av$cf.tsboot$t0)
-print("va")
-print(va$cf.tsboot$t0)
 }
-
-return (cmunu)
+return (plusterms)
 }
 ```
 
 
-
+How to get $w_0$?
 ```{r}
 #plot(czerozero, log="y")
-czerozero <- getcmunu(filellist = filelist, mu=0, nu=0, boot.R=100)
-czeroone <- getcmunu(filellist = filelist, mu=0, nu=1, boot.R=100)
-# plot(czerozero, xlab="t/a", ylab="C_00(t)", main="C_00")
+ZA <- 0.74294
+dZA <- 0.00024
+ZV <- 0.706379
+dZV <- 0.000024
+ZA <- 1
+ZV <- 1
+dZA <- 0
+dZV <- 0
+czerozero <- getcmunu(filellist = filelist, mu=0, nu=0, boot.R=100, ZA=ZA, ZV=ZV, dZA=dZA, dZV=dZV)
+czeroone <- getcmunu(filellist = filelist, mu=0, nu=1, boot.R=100, ZA=ZA, ZV=ZV, dZA=dZA, dZV=dZV)
+print(czerozero)
+plot(czerozero, xlab="t/a", ylab="C_00(t)", main="C_00", xlim=c(0, 48), log="y")
 
-# coneone <- getcmunu(filellist = filelist, mu=1, nu=1, boot.R=100)
-# plot(coneone, xlab="t/a", ylab="C_11(t)", main="C_11")
-# conetwo <- getcmunu(filellist = filelist, mu=1, nu=2, boot.R=100)
-# plot(conetwo, xlab="t/a", ylab="C_12(t)", main="C_12")
-# cthreethree <- getcmunu(filellist = filelist, mu=3, nu=3, boot.R=100, print=TRUE)
-# plot(cthreethree, xlab="t/a", ylab="C_33(t)", main="C_33")
-# czerothree <- getcmunu(filellist = filelist, mu=0, nu=3, boot.R=100)
-# plot(czerothree, xlab="t/a", ylab="C_03(t)", main="C_03")
-# cthreezero <- getcmunu(filellist = filelist, mu=3, nu=0, boot.R=100)
-# plot(czerothree, xlab="t/a", ylab="C_30(t)", main="C_30")
 
 ```
 
@@ -209,99 +133,19 @@ summary(smearmatrix)
 # plot(smearmatrix)
 ```
 
-
-get combined correlator by division
-Use eq. 2.8, 2.9, 2.15 to get Y, Z
-$\vec{n}=\frac{\vec{q}}{\sqrt{q^2}}=(0,0,1) or (0,0,0)$ for $q=0$?
-One possible source of error: /.cf treats real and imaginary part separately, so division is maybe false.
-
+is dt t_sink - t_j > 0  or t_j-t_sink < 0?
+here, $\hat{w}_0=1$.
 ```{r}
-# ytwo <- complexdivisionvlocal(czerozero, scalarsmeared)
-# plot(ytwo, log="y", xlab="t/a", ylab="Y^2(t)", main="Y^3=M_00")
-# print(ytwo$cf.tsboot$t0)
-# ytwoeffmass <- bootstrap.effectivemass(ytwo, type="log")
-# summary(ytwoeffmass)
-# plot(ytwoeffmass)
-ytwo <- czerozero / scalarsmearedalltimeslices
-mzeroone <- czeroone / scalarsmearedalltimeslices
-# plot(ytwo, log="y", xlab="t/a", ylab="Y^2(t)", main="Y^3=M_00")
-# print(ytwo)
-# combinedone <- coneone / scalarsmeared
-# plot(combinedone, log="y", xlab="t/a", ylab="M_11(t)", main="M_11")
-# combinedonetwo <- conetwo / scalarsmeared
-# plot(combinedonetwo, log="y", xlab="t/a", ylab="M_12(t)", main="M_12")
-# ythree <- cthreethree / scalarsmeared
-# plot(ythree, log="y", xlab="t/a", ylab="Y^3(t)", main="Y^3=M_33")
-# yfour <- (cthreezero + czerothree) / scalarsmeared
-# plot(yfour, log="y", xlab="t/a", ylab="Y^4(t)", main="Y^4=M_30 + M_03")
-# plot(ytwo + ythree - yfour, log="y", xlab="t/a", ylab="Z^0(t)", main="Z^0 = Y^2 + Y^3 - Y^4")
+mds <- c(smearmatrix$t0[1], smearmatrix$t[,1])
+dt <- 48-64
+expmdsdt <- exp(mds*dt)
+mdsoverexpmdsdt <- mds / expmdsdt
+# print(mdsoverexpmdsdt)
+ytwo <- multiplycfbootstrap(czerozero, mdsoverexpmdsdt[1], mdsoverexpmdsdt[2:length(mds)])
+ytwo <- ytwo / unsymmetrise.cf(scalarsmeared)
+df <- data.frame(t=seq(0,47), val=ytwo$cf0[49:2], err=ytwo$tsboot.se[49:2])
+plot(ytwo, xlim=c(0, 20), log="y")
+plotwitherror(x=df$t, y=df$val, dy=df$err, log="y", xlab="t2-t1", ylab="Y^2")
+# write.table(df, "Ytwoth0tins48.csv", row.names=F, col.names=T)
 ```
-
-It seems weird that the slope on the logplot is positive, is it supposed to be this way? Was the correlator of the two point function $C(t_1-t_{src})$ taken at the correct times or does there have to be a shift?
-
-Antonio Smeccas Solution for tho0 is monotonously decreasing in the region 0...30.
-
-t2=48 (fixed), t_sink=64, t_src=0, t_1=1...63
-
-For Z, take smeared-smeared matrix element, because correlators in denominator are also smeared. 
-Use correlator of potiton 17 to account for the offset caused by t=0 at pos 1.
-
-$t_2=48, t_{sink}=64 \Rightarrow t_{sink}-t_2=16 \Rightarrow C(t_{sink}-t_2)=C_{smeared}(16)$: 
-
-Hadron fits to $0.5\cdot A \cdot A \cdot (\exp(-tm)+\exp(-(time-t)m)$, but in paper we use $Z \cdot (\exp(-tm)+\exp(-(time-t)m)$, so $Z=0.5\cdot A^2$.
-
-```{r}
-corrt2_t0 <- scalarsmeared$cf.tsboot$t0[17]
-corrt2_t <- scalarsmeared$cf.tsboot$t[, 17]
-
-Z_smear_0 <- smearmatrix$t0[2]^2/2
-Z_smear <- smearmatrix$t[, 2]^2/2
-Z_smear_0
-ytwomul <- multiplycfbootstrap(ytwo, Z_smear_0/corrt2_t0, Z_smear/corrt2_t)
-```
-```{r}
-# print("M00")
-# ytwo$cf.tsboot$t0 * Z_smear_0 / corrt2_t0
-# ytwomul$cf.tsboot$t0
-# 
-# (ytwo$cf.tsboot$t0 * Z_smear_0 / corrt2_t0 - ytwomul$cf0) / ytwomul$cf0
-# pdf("comparisonjackknifebootstrap.pdf", title="")
-plot(ytwomul, log="y", xlim=c(0, 48), xlab="t/a", ylab="M_{0,0}", main="comparison of bootstrapped and jackknifed data", ylim=c(2e-4, 3.5))
-datamarco <- read.table("data_marco_m00.csv", header=T, sep=",")
-plotwitherror(x=seq(1, 63), y=datamarco$val, dy=datamarco$err, rep=T, col=2, pch=2)
-plotwitherror(x=seq(1, 63), y=2*(datamarco$val-ytwomul$cf0[2:64])/(datamarco$val+ytwomul$cf0[2:64]), dy=sqrt((4*ytwomul$cf0[2:64]*datamarco$err/(datamarco$val+ytwomul$cf0[2:64])^2)^2+(4*ytwomul$tsboot.se[2:64]*datamarco$val/(datamarco$val+ytwomul$cf0[2:64])^2)^2), 
-         xlab="t/a", ylab=" rel.dev. M_{0,0}", main="relative deviation of bootstrapped and jackknifed data")
-plotwitherror(x=seq(1, 63), y=2*(datamarco$val-ytwomul$cf0[2:64])/(datamarco$val+ytwomul$cf0[2:64]), dy=sqrt((4*ytwomul$cf0[2:64]*datamarco$err/(datamarco$val+ytwomul$cf0[2:64])^2)^2+(4*ytwomul$tsboot.se[2:64]*datamarco$val/(datamarco$val+ytwomul$cf0[2:64])^2)^2), ylim=c(-0.5, 0.5), xlab="t/a", ylab=" rel.dev. M_{0,0}", main="relative deviation of bootstrapped and jackknifed data")
-lines(x=seq(1, 63), y=rep(0, 63), col=2)
-```
-
-$$C_{\mu\nu} \sim J_\muJ_\nu =(V_\mu-A_\mu)(V_\nu-A_\nu)$$
-
-Multiply renormalization factors, C(t2): Multiply bootstrap by bootstrap. Only constant factor, can be done later.
-
-Compute $f_{D_s}$: two combined matrixfit to get to local-local matrix element.
-
-```{r fds matrixfit}
-scalar <- concat.cf(scalarlocal, scalarsmeared)
-plot(scalar, log="y")
-scalarmatrix <- matrixfit(scalar, t1=22, t2=42, 
-                          parlist=array(c(1, 1, 2, 2), dim=c(2, 2)), sym.vec=c("cosh", "cosh"), useCov=FALSE, neg.vec=c(1, 1))
-plot(scalarmatrix)
-summary(scalarmatrix)
-fds <- computefps(scalarmatrix, mu1=0.01692, mu2=0.2368, normalisation="new", disprel="lattice")
-print(fds)
-```
-
-```{r}
-scalarsmearedeffmass$effmassfit$t0[1]
-scalarsmearedeffmass$effmassfit$se
-```
-
-$$
-\begin{aligned}
-local &\to A_l A_s \exp(-m_c t)\\
-smeared &\to A_s A_s \exp(-m_c t)\\
-A_l &= \frac{A_l A_s}{\sqrt{A_s A_s}}
-\end{aligned}
-$$
 
