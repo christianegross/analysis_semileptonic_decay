@@ -1,0 +1,158 @@
+---
+title: "Determine f_D_s"
+author: "Christiane"
+date: "2023-06-20"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library("hadron")
+```
+
+# Goal
+
+the goal here is to check Marco's results of the behaviour of the smeared operators, especially comparing the behaviour of the smeared-smeared-correlator with thst calculated by the GEVP.
+
+First, set some constants
+
+```{r}
+
+m1 <- 1
+m2 <- 5
+bs <- 500
+boot.l <- 10
+```
+
+read in data, do bootstraps on qbig
+```{r, eval = FALSE}
+filelist <- getorderedfilelist(path="/hiskp4/heavy_quarks/data/cB211ab.07.64/out_run3", 
+            basename="", ending="/mes_contr_2pts_ll", last.digits=4)
+filelist <- substr(filelist, 1, nchar(filelist[1])-3)
+combs_to_read <- data.frame(m1_idx=m1, m2_idx=m2, r1_idx=0, r2_idx=0, spin_comb="P5P5")
+for(spincomb in c("ll", "sl", "ls", "ss")){
+corr <- readnissatextcf(file_basenames_to_read=filelist, smear_combs_to_read=spincomb, 
+                        Time=128, combs_to_read=combs_to_read, nts=128, sym.vec=1, symmetrise=TRUE)
+corr <- bootstrap.cf(corr, boot.R=bs, boot.l=boot.l)
+filename <- sprintf("%s-P5P5-m1_%d-m2_%d-r1_0-r2_0-bs%d-l%d-sym_p1-symmetrise_true.RData", spincomb, m1, m2, bs, boot.l)
+print(filename)
+saveRDS(corr, filename)
+}
+```
+
+read in data on local machine
+```{r}
+
+ll <- readRDS(sprintf("ll-P5P5-m1_%d-m2_%d-r1_0-r2_0-bs%d-l%d-sym_p1-symmetrise_true.RData", m1, m2, bs, boot.l))
+ls <- readRDS(sprintf("ls-P5P5-m1_%d-m2_%d-r1_0-r2_0-bs%d-l%d-sym_p1-symmetrise_true.RData", m1, m2, bs, boot.l))
+sl <- readRDS(sprintf("sl-P5P5-m1_%d-m2_%d-r1_0-r2_0-bs%d-l%d-sym_p1-symmetrise_true.RData", m1, m2, bs, boot.l))
+ss <- readRDS(sprintf("ss-P5P5-m1_%d-m2_%d-r1_0-r2_0-bs%d-l%d-sym_p1-symmetrise_true.RData", m1, m2, bs, boot.l))
+```
+
+concatenate all smearing combinations for use in the gevp.
+```{r}
+# corrforgevp <- readRDS(sprintf("allcorr-P5P5-m1_%d-m2_%d-r1_0-r2_0-bs%d-l%d-sym_p1-symmetrise_true.RData", m1, m2, bs, boot.l))
+corrforgevp1 <- concat.cf(ll, sl)
+corrforgevp2 <- concat.cf(ls, ss)
+corrforgevp <- concat.cf(corrforgevp1, corrforgevp2)
+# plot(corrforgevp, log="y")
+```
+do gevp, determine single states
+id=1 corresponds to the ground state
+```{r dogevp}
+gevpres <- bootstrap.gevp(corrforgevp, t0=1, sort.type = "vectors")
+ground <- gevp2cf(gevpres, id=1)
+# plot(ground, log="y")
+```
+
+Determine effective mass of ground state. All fit ranges are determined by eye.
+
+```{r}
+ground.mass <- bootstrap.effectivemass(ground)
+ground.mass <- fit.effectivemass(cf=ground.mass, t1=16, t2=43)
+plot(ground.mass, ylim=c(0.7, 0.75), xlab="t/a", ylab="meff", main="GEVP ground state", xlim=c(0, 63))
+summary(ground.mass)
+```
+
+get fds via amplitude and predetermined effective mass
+
+```{r}
+gevp.amplitude <- gevp2amplitude(gevpres, mass=ground.mass, id=1, type="cosh", t1=30, t2=55)
+plot(gevp.amplitude, ylim=c(0.2, 0.32), xlab="t/a", ylab="Amplitude", main="Amplitude as determined by GEVP, xlim=c(0, 63)")
+gevpamplitudefps <- computefps(mfit=gevp.amplitude, mu1=0.0148, mu2=0.1962, normalisation="new", disprel="lattice")
+summary(gevpamplitudefps)
+```
+
+For each possible smearing combination, determine effective masses and fit mass.
+
+```{r ll}
+ll.mass <- bootstrap.effectivemass(ll)
+ll.mass <- fit.effectivemass(ll.mass, t1=23, t2=43)
+plot(ll.mass, ylim=c(0.71, 0.73), xlab="t/a", ylab="meff", main="local-local", xlim=c(0, 63))
+summary(ll.mass)
+```
+
+```{r ls}
+ls.mass <- bootstrap.effectivemass(ls)
+ls.mass <- fit.effectivemass(ls.mass, t1=12, t2=43)
+plot(ls.mass, ylim=c(0.71, 0.73), xlab="t/a", ylab="meff", main="local-smeared", xlim=c(0, 63))
+summary(ls.mass)
+```
+```{r sl}
+sl.mass <- bootstrap.effectivemass(sl)
+sl.mass <- fit.effectivemass(sl.mass, t1=16, t2=43)
+plot(sl.mass, ylim=c(0.71, 0.73), xlab="t/a", ylab="meff", main="smeared-local", xlim=c(0, 63))
+summary(sl.mass)
+```
+```{r ss}
+ss.mass <- bootstrap.effectivemass(ss)
+ss.mass <- fit.effectivemass(ss.mass, t1=16, t2=43)
+plot(ss.mass, ylim=c(0.71, 0.73), xlab="t/a", ylab="meff", main="smeared-smeared", xlim=c(0, 63))
+summary(ss.mass)
+```
+plot smeared-smeared and GEVP results together.
+```{r}
+plot(ss.mass, ylim=c(0.71, 0.73), xlab="t/a", ylab="meff", main="compare GEVP and different smearings", xlim=c(0, 63))
+plot(sl.mass, rep=TRUE, col=6, pch=6)
+plot(ground.mass, rep=TRUE, col=2, pch=2)
+plot(ll.mass, rep=TRUE, col=4, pch=5)
+legend(x="topleft", legend=c("GEVP", "ss", "ll", "sl"), col=c(2, 1, 4, 6), pch=c(2, 1, 5, 6))
+```
+```{r}
+plot(ss.mass, ylim=c(0.71, 0.73), xlab="t/a", ylab="meff", main="compare smeared-smeared and GEVP", xlim=c(0, 63))
+plot(ground.mass, rep=TRUE, col=2, pch=2)
+legend(x="topleft", legend=c("ss", "GEVP"), col=c(1, 2), pch=c(1, 2))
+```
+
+save results of effective masses.
+```{r}
+result <- data.frame(ll=ll.mass$effMass, dll=ll.mass$deffMass,
+                     sl=sl.mass$effMass, dsl=sl.mass$deffMass,
+                     ls=ls.mass$effMass, dls=ls.mass$deffMass,
+                     ss=ss.mass$effMass, dss=ss.mass$deffMass,
+                     gevp=ground.mass$effMass, dgevp=ground.mass$deffMass)
+write.table(result, "cross_fds_christiane_alleffmass.csv", row.names=F)
+```
+```{r}
+masses <- data.frame(smear=c("ll", "sl", "ls", "ss", "GEVP"), 
+                     masses=c(ll.mass$effmassfit$t0[1], sl.mass$effmassfit$t0[1], 
+                              ls.mass$effmassfit$t0[1], ss.mass$effmassfit$t0[1],
+                              ground.mass$effmassfit$t0[1]), 
+                     dmasses=c(ll.mass$effmassfit$se[1], sl.mass$effmassfit$se[1], 
+                              ls.mass$effmassfit$se[1], ss.mass$effmassfit$se[1],
+                              ground.mass$effmassfit$se[1]), 
+                     chisqrred = c(ll.mass$effmassfit$chisqr/ll.mass$effmassfit$dof, 
+                                   sl.mass$effmassfit$chisqr/sl.mass$effmassfit$dof, 
+                                   ls.mass$effmassfit$chisqr/ls.mass$effmassfit$dof, 
+                                   ss.mass$effmassfit$chisqr/ss.mass$effmassfit$dof, 
+                                   ground.mass$effmassfit$chisqr/ground.mass$effmassfit$dof))
+masses
+write.table(result, "cross_fds_christiane_masses.csv", row.names=F)
+```
+```{r}
+plotwitherror(x=seq(0, 63), y=ground.mass$effMass-ss.mass$effMass, dy=sqrt(ground.mass$deffMass^2+ss.mass$deffMass^2), ylim=c(-0.0001, 0.0001))
+lines(x=seq(-5, 68), y=rep(0, 74))
+```
+
