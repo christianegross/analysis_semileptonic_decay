@@ -147,13 +147,15 @@ expmdsdt <- exp(mds*dt)
 mdsoverexpmdsdt <- mds / expmdsdt
 expovermds <- expmdsdt / mds
 denom <- multiplycfbootstrap(scalarsmearedalltimeslices, expovermds[1], expovermds[2:length(mds)])
-# ytwo <- complexdivisionvlocal(czerozero, denom)
-ytwo <- czerozero / denom
+ytwo <- complexdivisionvlocal(czerozero, denom)
+# ytwo <- czerozero / denom
 df <- data.frame(t=seq(0,tins), val=ytwo$cf0[(tins+1):1], err=ytwo$tsboot.se[(tins+1):1])
 plot(ytwo, xlim=c(0, 20), log="y")
 plotwitherror(x=df$t, y=df$val, dy=df$err, log="y", xlab="t2-t1", ylab="Y^2")
 # write.table(df, "Ytwoth0tins48.csv", row.names=F, col.names=T)
 data_christiane <- data.frame(t=seq(0,127), c4=czerozero$cf0, dc4=czerozero$tsboot.se, c2=scalarsmearedalltimeslices$cf0, dc2=scalarsmearedalltimeslices$tsboot.se, ytwo = c(ytwo$cf0[(tins+1):1], rep(NA, 127-tins)), dy2=c(ytwo$tsboot.se[(tins+1):1], rep(NA, 127-tins)))
+head(ytwo$cf0[(tins+1):1])
+head(ytwo$tsboot.se[(tins+1):1])
 ```
 
 y^4 Im(-03+30)
@@ -169,7 +171,7 @@ ctwoone <- getcmunu(filellist = filelist, mu=2, nu=1, boot.R=100, ZA=ZA, ZV=ZV, 
 ctwotwo <- getcmunu(filellist = filelist, mu=2, nu=2, boot.R=100, ZA=ZA, ZV=ZV, dZA=dZA, dZV=dZV, w2=1, boot.l=bootl)
 ```
 
-```{r, eval=FALSE}
+```{r, eval=T}
 intermedres <- data.frame(c00=czerozero$cf0, dc00=czerozero$tsboot.se,
                           c11=coneone$cf0, dc11=coneone$tsboot.se,
                           c12=conetwo$cf0, dc12=conetwo$tsboot.se,
@@ -177,20 +179,31 @@ intermedres <- data.frame(c00=czerozero$cf0, dc00=czerozero$tsboot.se,
                           c22=ctwotwo$cf0, dc22=ctwotwo$tsboot.se,
                           c03=czerothree$cf0, dc03=czerothree$tsboot.se,
                           c30=cthreezero$cf0, dc30=cthreezero$tsboot.se,
-                          c33=cthreethree$cf0, dc33=cthreethree$tsboot.se
+                          c33=cthreethree$cf0, dc33=cthreethree$tsboot.se,
+                          ic00=czerozero$icf0, dic00=czerozero$itsboot.se,
+                          ic11=coneone$icf0, dic11=coneone$itsboot.se,
+                          ic12=conetwo$icf0, dic12=conetwo$itsboot.se,
+                          ic21=ctwoone$icf0, dic21=ctwoone$itsboot.se,
+                          ic22=ctwotwo$icf0, dic22=ctwotwo$itsboot.se,
+                          ic03=czerothree$icf0, dic03=czerothree$itsboot.se,
+                          ic30=cthreezero$icf0, dic30=cthreezero$itsboot.se,
+                          ic33=cthreethree$icf0, dic33=cthreethree$itsboot.se
                           )
 intermedres <- intermedres / denom$cf0
 intermedres <- intermedres[(tins+1):1, ]
 write.table(intermedres, "intermedres_M_christiane.csv", row.names=F)
 ```
 
-
+Maybe the problem is in the division of the imaginary parts? So far, always did complex division or divided real by real and imaginary by imaginary, but try to divide imaginary be real for yfour
 ```{r}
 ythree <- multiplycfscalar(cthreethree, -1) / denom
 # ythree <- complexdivisionvlocal(multiplycfscalar(cthreethree, -1), denom)
 yfour <- multiplycfscalar(czerothree, -1)# - cthreezero
 # yfour <- complexdivisionvlocal(yfour, denom)
-yfour <- yfour / denom
+# yfour <- yfour / denom
+yfour$icfo <- yfour$icf0 / denom$cf0
+yfour$itsboot.se <- yfour$itsboot.se / denom$cf0
+# yfour$itsboot.se <- sqrt((yfour$itsboot.se / denom$cf0)^2 + (yfour$icf0 * denom$tsboot.se/ denom$cf0^2)^2)
 yfive <- conetwo-ctwoone
 # yfive <- complexdivisionvlocal(multiplycfscalar(yfive, 0.5), denom)
 yfive <- multiplycfscalar(yfive, 0.5) / denom
@@ -273,11 +286,11 @@ plotwitherror(x=data_marco$t[2:48], y=data_marco$c4[2:48]-data_christiane$ytwo[2
 lines(x=seq(0, 80), y=rep(0, 81), col=c(1))
 plotwitherror(x=data_marco$t[2:48], y=data_marco$zzero[2:48]-dataantonio$Z0[2:48], dy=sqrt(data_marco$dzzero[2:48]^2+dataantonio$dZ0[2:48]^2), main="Z_0 marco vs Z_0 antonio")
 lines(x=seq(0, 80), y=rep(0, 81), col=c(1))
-plotwitherror(x=data_marco$t[2:49], y=data_marco$zzero[2:49]-data_christiane$zzero[2:49], dy=sqrt(data_marco$dzzero[2:49]^2+data_christiane$dzzero[2:49]^2), main="Z_0 marco vs Z_0 christiane")
+plotwitherror(x=data_marco$t[2:49], y=data_marco$zzero[2:49]-data_christiane$zzero[2:49], dy=sqrt(data_marco$dzzero[2:49]^2+data_christiane$dzzero[2:49]^2), main="Z_0 marco vs Z_0 christiane", ylim=c(-1e-2, 1e-2))
 lines(x=seq(0, 80), y=rep(0, 81), col=c(1))
-plotwitherror(x=data_marco$t[2:49], y=data_marco$zone[2:49]-data_christiane$zone[2:49], dy=sqrt(data_marco$dzone[2:49]^2+data_christiane$dzone[2:49]^2), main="Z_1 marco vs christiane")
+plotwitherror(x=data_marco$t[2:49], y=data_marco$zone[2:49]-data_christiane$zone[2:49], dy=sqrt(data_marco$dzone[2:49]^2+data_christiane$dzone[2:49]^2), main="Z_1 marco vs christiane", ylim=c(-1e-2, 1e-2))
 lines(x=seq(0, 80), y=rep(0, 81), col=c(1))
-plotwitherror(x=data_marco$t[2:49], y=data_marco$ztwo[2:49]-data_christiane$ztwo[2:49], dy=sqrt(data_marco$dztwo[2:49]^2+data_christiane$dztwo[2:49]^2), main="Z_2 marco vs christiane")
+plotwitherror(x=data_marco$t[2:49], y=data_marco$ztwo[2:49]-data_christiane$ztwo[2:49], dy=sqrt(data_marco$dztwo[2:49]^2+data_christiane$dztwo[2:49]^2), main="Z_2 marco vs christiane", ylim=c(-1e-2, 1e-2))
 lines(x=seq(0, 80), y=rep(0, 81), col=c(1))
 head(data_marco$c4)
 head(data_christiane$c4)
