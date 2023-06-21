@@ -12,9 +12,9 @@ complexdivisionvlocal <- function(cf1, cf2){
     if( has_icf(cf1) | has_icf(cf2) ){
       stopifnot(has_icf(cf1) & has_icf(cf2))
       divisor <- cf2$cf^2 + cf2$icf^2
-      print(head(divisor[, 1:5]))
-      print(head(cf1$cf[, 1:5] * cf2$cf[, 1:5]))
-      print(head(cf1$icf[, 1:5] * cf2$icf[, 1:5]))
+      # print(head(divisor[, 1:5]))
+      # print(head(cf1$cf[, 1:5] * cf2$cf[, 1:5]))
+      # print(head(cf1$icf[, 1:5] * cf2$icf[, 1:5]))
       cf$cf <- (cf1$cf * cf2$cf - cf1$icf * cf2$icf) / divisor
       cf$icf <- (cf1$icf * cf2$cf - cf1$cf * cf2$icf) / divisor
       ## the following is a bit dangerous, however, for
@@ -53,11 +53,11 @@ multiplycfbootstrap <- function(cf, central, bootstraps){
     cfnew$icf <- cf$icf * central
   }
   if(inherits(cf, 'cf_boot')){
-    print(dim(cf$cf.tsboot$t))
+    # print(dim(cf$cf.tsboot$t))
     # print(dim(bootstraps))
-#' bootstraps may be an array, so use as.vector
+    #' bootstraps may be an array, so use as.vector
     cfnew$cf.tsboot$t  <- cf$cf.tsboot$t * as.vector(bootstraps)
-    print(dim(cfnew$cf.tsboot$t))
+    # print(dim(cfnew$cf.tsboot$t))
     cfnew$cf.tsboot$t0  <- cf$cf.tsboot$t0 * central
     cfnew$tsboot.se <- apply(cfnew$cf.tsboot$t, MARGIN = 2L, FUN = cfnew$error_fn)
     cfnew$cf0 <- cfnew$cf.tsboot$t0
@@ -71,4 +71,31 @@ multiplycfbootstrap <- function(cf, central, bootstraps){
     }
   }
   return(cfnew)
+}
+  
+  multiplycfscalar <- function(cf, scalar){
+    cfnew <- cf
+    cfnew$cf <- cf$cf * scalar
+    if( has_icf(cf)){
+      cfnew$icf <- cf$icf * scalar
+    }
+    if(inherits(cf, 'cf_boot')){
+      # print(dim(cf$cf.tsboot$t))
+      # print(dim(bootstraps))
+      #' bootstraps may be an array, so use as.vector
+      cfnew$cf.tsboot$t  <- cf$cf.tsboot$t * scalar
+      # print(dim(cfnew$cf.tsboot$t))
+      cfnew$cf.tsboot$t0  <- cf$cf.tsboot$t0 * scalar
+      cfnew$tsboot.se <- apply(cfnew$cf.tsboot$t, MARGIN = 2L, FUN = cfnew$error_fn)
+      cfnew$cf0 <- cfnew$cf.tsboot$t0
+      
+      if( has_icf(cf)){
+        cfnew$icf.tsboot$t  <- cf$icf.tsboot$t * scalar
+        cfnew$icf.tsboot$t0  <- cf$icf.tsboot$t0 * scalar
+        
+        cfnew$itsboot.se <- apply(cfnew$icf.tsboot$t, MARGIN = 2L, FUN = cfnew$error_fn)
+        cfnew$icf0 <- cfnew$icf.tsboot$t0
+      }
+    }
+    return(cfnew)
 }
