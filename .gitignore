@@ -2,6 +2,8 @@
 *.html
 .Rhistory
 *.csv
-*.dat*
+*.dat
+*.dat_output
 *.png
 *.RData
+*lock*
