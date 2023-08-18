@@ -1,6 +1,8 @@
 ---
-title: "R Notebook"
+title: "Getting the results for the Z-Correlators and comparing to those of Antonio"
+author: "Christiane"
 output:
+  pdf_document: default
   html_document:
     df_print: paged
 ---
@@ -22,7 +24,7 @@ filelist <- substr(filelist, 1, nchar(filelist[1])-17)
 
 tsink <- 64
 tins <- 48
-bootl <- 10
+bootl <- 1
 bootsamples <- 100
 # print(filelist)
 
@@ -34,16 +36,16 @@ Only 199 files, b712 (?) did not run properly, but maybe not worth the time to r
 Read in data for vector currents.
 
 
-define function for arbitrary mu, nu
+define function for arbitrary $\mu, \nu$.
 <!-- In Antonios note, he only mentions AA and VV, so take out mixed parts. -->
-AV and VA are only needed for $C_{12}$ and $C_{21}$, not for the rest, so build a switch for them
-AA and VV are weighted with renormalizations factors.
+AV and VA are only needed for $C_{12}$ and $C_{21}$, not for the rest, so build a switch for them.
+The correlators are weighted with renormalization factors.
 reformulate Antonios note:
 
 $Y^2(t)=\frac{M_{D_s}}{\exp(M_{D_s}\cdot dt)}\frac{\hat{w}_0^2}{C_2(t)}\left(Z_V^2C_4^{V_0V_0}(t) + Z_A^2C_4^{A_0A_0}(t)\right)$
 ```{r}
-##four point function is not symmetric, do not symmetrise, also take care of divison
-getcmunu <- function(filellist, Time=128, mu=0, nu=0, boot.R=100, print=FALSE, boot.l=10, ZA, ZV, dZA, dZV, theta = 0, w2 = 1, symmetric=T, unsymmetric=F){
+##four point function is not symmetric, do not symmetrise, also take care of division
+getcmunu <- function(filellist, Time=128, mu=0, nu=0, boot.R=100, print=FALSE, boot.l=10, ZA, ZV, dZA, dZV, theta = 0, w2 = 1, symmetric=T, unsymmetric=F, sim="fixed"){
 if(!symmetric & !unsymmetric){
   stop("getcmunu: at least one of symmetric and unsymmetric has to be given!")
 }
@@ -52,13 +54,13 @@ aa <- readnissatextcf(filelist, smear_combs_to_read=c(paste("mes_contr_H_C_Dth",
         corrtype="general", symmetrise=FALSE, sym.vec=c(1), 
         # combs_to_read=data.frame(op1_idx="C_H", op2_idx=paste("Dth", theta, "_A", mu, "_C_P_H_H_S_H", sep=""), spin_comb="P5P5"))
         combs_to_read=data.frame(op1_idx="C_H", op2_idx=paste("Dth", theta, "_A", nu, "_C_P_H_H_S_H", sep=""), spin_comb=paste("A", mu, "P5", sep="")))
-aa <- bootstrap.cf(aa, boot.R=boot.R, boot.l=boot.l, sim="geom")
+aa <- bootstrap.cf(aa, boot.R=boot.R, boot.l=boot.l, sim=sim)
 
 vv <- readnissatextcf(filelist, smear_combs_to_read=c(paste("mes_contr_H_C_Dth", theta, "_V_C_P_H_H_S_H", sep="")), Time=Time, 
         corrtype="general", symmetrise=FALSE, sym.vec=c(1), 
         # combs_to_read=data.frame(op1_idx="C_H", op2_idx=paste("Dth", theta, "_V", mu, "_C_P_H_H_S_H", sep=""), spin_comb="P5P5"))
         combs_to_read=data.frame(op1_idx="C_H", op2_idx=paste("Dth", theta, "_V", nu, "_C_P_H_H_S_H", sep=""), spin_comb=paste("V", mu, "P5", sep="")))
-vv <- bootstrap.cf(vv, boot.R=boot.R, boot.l=boot.l, sim="geom")
+vv <- bootstrap.cf(vv, boot.R=boot.R, boot.l=boot.l, sim=sim)
 
 bootstrapZA <- parametric.bootstrap(boot.R, c(ZA), c(dZA))
 bootstrapZV <- parametric.bootstrap(boot.R, c(ZV), c(dZV))
@@ -75,13 +77,13 @@ av <- readnissatextcf(filelist, smear_combs_to_read=c(paste("mes_contr_H_C_Dth",
         corrtype="general", symmetrise=FALSE, sym.vec=c(1), 
         # combs_to_read=data.frame(op1_idx="C_H", op2_idx=paste("Dth", theta, "_A", mu, "_C_P_H_H_S_H", sep=""), spin_comb="P5P5"))
         combs_to_read=data.frame(op1_idx="C_H", op2_idx=paste("Dth", theta, "_V", nu, "_C_P_H_H_S_H", sep=""), spin_comb=paste("A", mu, "P5", sep="")))
-av <- bootstrap.cf(av, boot.R=boot.R, boot.l=boot.l, sim="geom")
+av <- bootstrap.cf(av, boot.R=boot.R, boot.l=boot.l, sim=sim)
 
 va <- readnissatextcf(filelist, smear_combs_to_read=c(paste("mes_contr_H_C_Dth", theta, "_A_C_P_H_H_S_H", sep="")), Time=Time, 
         corrtype="general", symmetrise=FALSE, sym.vec=c(1), 
         # combs_to_read=data.frame(op1_idx="C_H", op2_idx=paste("Dth", theta, "_V", mu, "_C_P_H_H_S_H", sep=""), spin_comb="P5P5"))
         combs_to_read=data.frame(op1_idx="C_H", op2_idx=paste("Dth", theta, "_A", nu, "_C_P_H_H_S_H", sep=""), spin_comb=paste("V", mu, "P5", sep="")))
-va <- bootstrap.cf(va, boot.R=boot.R, boot.l=boot.l, sim="geom")
+va <- bootstrap.cf(va, boot.R=boot.R, boot.l=boot.l, sim=sim)
 
 bootstrapZA <- parametric.bootstrap(boot.R, c(ZA), c(dZA))
 bootstrapZV <- parametric.bootstrap(boot.R, c(ZV), c(dZV))
@@ -115,17 +117,18 @@ return (res)
 
 
 
-symmetrisation makes 65 timeslices out of 128: measure from 0..127, 0 stays the same, 1+127, 2+126, ..., 64 stays the same -> now from 0..64, 65 times. Do not symmetrise four-point function, symmetrisation does not make sense with more than one inserted time. But do symmetrise two-point-function to get better signal for mass, matrix element, unsymmetrise later to get values for all timeslices. Calculate smeared-smeared (and local-smeared) contribution to determine masses, influence of smearing.
+symmetrisation makes 65 timeslices out of 128: measure from 0..127, 0 stays the same, 1+127, 2+126, ..., 64 stays the same -> now from 0..64, 65 times. Do not symmetrise four-point function, symmetrisation does not make sense with more than one inserted time. But do symmetrise two-point-function to get better signal for mass, matrix element, unsymmetrise later to get values for all timeslices. Calculate smeared-smeared contribution to determine masses.
 
 ```{r, echo=FALSE, eval=TRUE}
 # scalarlocal <- readnissatextcf(filelist, smear_combs_to_read=c("/mes_contr_H_C_S_H"), Time=128,
 #                 corrtype="general", combs_to_read=data.frame(op1_idx="C_H", op2_idx="S_H", spin_comb="P5P5"),
 #                 symmetrise=TRUE, sym.vec=c(1))
-# scalarlocal <- bootstrap.cf(scalarlocal, boot.R=bootsamples, boot.l=bootl)
+# scalarlocal <- bootstrap.cf(scalarlocal, boot.R=bootsamples, boot.l=bootl, sim="fixed")
 scalarsmeared <- readnissatextcf(filelist, smear_combs_to_read=c("/mes_contr_H_C_H_H_S_H"), Time=128,
                 corrtype="general", combs_to_read=data.frame(op1_idx="C_H", op2_idx="H_H_S_H", spin_comb="P5P5"),
                 symmetrise=TRUE, sym.vec=c(1))
-scalarsmeared <- bootstrap.cf(scalarsmeared, boot.R=bootsamples, boot.l=bootl, sim="geom")
+scalarsmeared <- bootstrap.cf(scalarsmeared, boot.R=bootsamples, boot.l=bootl, sim="fixed")
+# , seed=5647382
 scalarsmearedalltimeslices <- unsymmetrise.cf(scalarsmeared)
 
 # print(scalarsmeared$cf[1, ])
@@ -133,38 +136,99 @@ scalarsmearedalltimeslices <- unsymmetrise.cf(scalarsmeared)
 plot(scalarsmeared, log="y", xlab="t/a", ylab="C(t)", main="smeared-smeared two point function")
 ```
 
-Use effective mass to get a sense of boundaries for following matrixfit
+Use effective mass to get a sense of boundaries for following matrixfit.
+In the following, use Antonios fitrange, 15-48, everywhere.
+<!-- (the matrixfitresuult for 16 to 37 reproduces that of Antonio the most closely.) -->
+Goal: reproduce Antonios results for the effective mass
 
 ```{r, echo=FALSE, eval=TRUE}
-# scalarlocaleffmass <- bootstrap.effectivemass(scalarlocal)
-scalarsmearedeffmass <- bootstrap.effectivemass(scalarsmeared)
-# scalarlocaleffmass <- fit.effectivemass(scalarlocaleffmass, t1=10, t2=20)
-#scalarsmearedeffmass <- fit.effectivemass(scalarsmearedeffmass, t1=14, t2=36)
-scalarsmearedeffmass <- fit.effectivemass(scalarsmearedeffmass, t1=16, t2=42)
-# plot(scalarlocaleffmass, ylim=c(0.79, 0.82), xlab="t/a", ylab="m_eff(t)", main="smeared-local two point function")
+scalarsmearedeffmass <- bootstrap.effectivemass(scalarsmeared, type="solve")
+scalarsmearedeffmass <- fit.effectivemass(scalarsmearedeffmass, t1=15, t2=48, useCov=FALSE)
 plot(scalarsmearedeffmass, ylim=c(0.79, 0.82), xlab="t/a", ylab="m_eff(t)", main="smeared-smeared two point function")
 plot(scalarsmearedeffmass, xlab="t/a", ylab="m_eff(t)", main="smeared-smeared two point function")
 # print(scalarsmearedeffmass$effMass)
-# summary(scalarsmearedeffmass)
+summary(scalarsmearedeffmass)
+# cat("bias:\n", scalarsmearedeffmass$effmassfit$t0[1], "-", mean(scalarsmearedeffmass$effmassfit$t[, 1]), "=", scalarsmearedeffmass$effmassfit$t0[1] - mean(scalarsmearedeffmass$effmassfit$t[, 1]), "\n")
+# cat("difference to Antonio:", 0.7999551426 - scalarsmearedeffmass$effmassfit$t0[1])
+# scalarlocaleffmass <- bootstrap.effectivemass(scalarlocal, type="solve")
+# scalarlocaleffmass <- fit.effectivemass(scalarlocaleffmass, t1=15, t2=48, useCov=TRUE)
+# plot(scalarlocaleffmass, ylim=c(0.79, 0.82), xlab="t/a", ylab="m_eff(t)", main="smeared-smeared two point function")
+# plot(scalarlocaleffmass, xlab="t/a", ylab="m_eff(t)", main="smeared-smeared two point function")
+# # print(scalarsmearedeffmass$effMass)
+# summary(scalarlocaleffmass)
 
 ```
+<!-- seed: 5647382: -->
+<!--  0.8000066088 - 0.8000208759 = -1.426709406e-05  -->
+<!-- difference to Antonio: -5.146621331e-05 -->
+
+<!-- seed: 987654 -->
+<!--  0.8000016698 - 0.8000232463 = -2.15764737e-05  -->
+<!-- difference to Antonio: -4.652721124e-05 -->
+<!-- seed: 123456 -->
+<!--  0.8000027005 - 0.7999757659 = 2.693463372e-05  -->
+<!-- difference to Antonio: -4.755792447e-05 -->
+
+Alternative: determine the effective mass via jackknife 
+
+```{r, echo=FALSE}
+scalarsmearedjk <- readnissatextcf(filelist, smear_combs_to_read=c("/mes_contr_H_C_H_H_S_H"), Time=128,
+                corrtype="general", combs_to_read=data.frame(op1_idx="C_H", op2_idx="H_H_S_H", spin_comb="P5P5"),
+                symmetrise=TRUE, sym.vec=c(1))
+scalarsmearedjk <- jackknife.cf(scalarsmearedjk, boot.l=bootl)
+scalarsmearedjkalltimeslices <- unsymmetrise.cf(scalarsmearedjk)
+
+scalarsmearedjkeffmass <- bootstrap.effectivemass(scalarsmearedjk, type="solve")
+scalarsmearedjkeffmass <- fit.effectivemass(scalarsmearedjkeffmass, t1=15, t2=48, useCov=TRUE)
+plot(scalarsmearedjkeffmass, ylim=c(0.79, 0.82), xlab="t/a", ylab="m_eff(t)", main="smeared-smeared two point function, jackknife estimators")
+plot(scalarsmearedjkeffmass, xlab="t/a", ylab="m_eff(t)", main="smeared-smeared two point function, jackknife estimators")
+# print(scalarsmearedeffmass$effMass)
+summary(scalarsmearedjkeffmass)
+# cat("bias:\n", scalarsmearedjkeffmass$effmassfit$t0[1], "-", mean(scalarsmearedjkeffmass$effmassfit$t[, 1]), "=", scalarsmearedjkeffmass$effmassfit$t0[1] - mean(scalarsmearedjkeffmass$effmassfit$t[, 1]), "\n")
+# cat("difference to Antonio:", 0.7999551426 - scalarsmearedeffmass$effmassfit$t0[1])
+
+resultsjackknife <- data.frame(t=scalarsmearedjkeffmass$t.idx, m=scalarsmearedjkeffmass$effMass, dm=scalarsmearedjkeffmass$deffMass)
+write.table(resultsjackknife, file="massesjackknife.csv", row.names=F, col.names=T)
+
+```
+
 
 <!-- Do matrixfits to get to $m_c$, $Z$. Fits work only for useCov=FALSE, otherwise  -->
 <!-- Error in chol.default(M) :  -->
 <!--   the leading minor of order 20 is not positive definite -->
+Now do the matrixfit
 ```{r, echo=FALSE, eval=TRUE}
 # localmatrix <- matrixfit(scalarlocal, t1=10, t2=20, sym.vec=c("cosh"), useCov=FALSE)
-smearmatrix <- matrixfit(scalarsmeared, t1=16, t2=42, sym.vec=c("cosh"), useCov=FALSE)
+smearmatrix <- matrixfit(scalarsmeared, t1=15, t2=48, sym.vec=c("cosh"), useCov=FALSE, parlist = array(c(1,1), dim=c(2,1)), neg.vec = c(1))
 # summary(localmatrix)
 summary(smearmatrix)
 # plot(smearmatrix)
 ```
+<!-- Calculate meff for many different params to see if any of them matches Antonios mass exactly, best result for t1=16, t2=37, but error wrong -->
+```{r, echo=FALSE, eval=FALSE}
+# tryeffmass <- bootstrap.effectivemass(scalarsmeared, type="solve")
+tryeffmass <- bootstrap.effectivemass(scalarsmearedjk, type="solve")
+options(digits=10)
+resallranges <- data.frame(t1=NA, t2=NA, m=NA, dm=NA, chired=NA, p=NA)
+for(t1 in seq(10, 30)){
+  for(t2 in seq(max(t1+1, 20), 64)){
+    # mfit <- matrixfit(scalarsmeared, t1=t1, t2=t2, sym.vec=c("cosh"), useCov=FALSE, parlist = array(c(1,1), dim=c(2,1)), neg.vec = c(1))
+    # cat(t1, " ", t2, " ", mfit$t0[1], " ", mfit$error_fn(mfit$t[,1]), "\n")
+    # reseffmass <- fit.effectivemass(tryeffmass, t1=t1, t2=t2)
+    # cat(t1, " ", t2, " ", reseffmass$effmassfit$t0[1], " ", reseffmass$effmassfit$se[1], "\n")
+    reseffmass <- fit.effectivemass(scalarsmearedjkeffmass, t1=t1, t2=t2, useCov=T)
+    newlineeffmass <- data.frame(t1=t1, t2=t2, m=reseffmass$effmassfit$t0[1], dm=reseffmass$effmassfit$se[1], chired=reseffmass$chisqr / reseffmass$dof, p=reseffmass$Qval)
+    resallranges <- rbind(resallranges, newlineeffmass)
+  }
+}
+print(resallranges)
+write.table(resallranges, file="resultseffectivemassjackknifeusecovtrue.csv", row.names=F, col.names=T)
+```
 
 
-How to get $w_0$? Here, it is 1. For n ow, do not take ZA, ZV into account.
+How to get $w_0$? Here, it is 1. For now, do not take ZA, ZV into account. At a later time, this can easily be changed.
 Determine four-point functions:
 ```{r}
-#plot(czerozero, log="y")
 ZA <- 0.74294
 dZA <- 0.00024
 ZV <- 0.706379
@@ -174,7 +238,6 @@ ZV <- 1
 dZA <- 0
 dZV <- 0
 czerozero <- getcmunu(filellist = filelist, mu=0, nu=0, boot.R=bootsamples, ZA=ZA, ZV=ZV, dZA=dZA, dZV=dZV, w2=1, boot.l=bootl, symmetric=T, unsymmetric=F)
-# print(czerozero)
 plot(czerozero, xlab="t/a", ylab="C_00(t)", main="C_00", xlim=c(0, 48), log="y")
 
 
@@ -196,10 +259,12 @@ ctwotwo <- getcmunu(filellist = filelist, mu=2, nu=2, boot.R=bootsamples, ZA=ZA,
 
 
 <!-- is dt t_sink - t_j > 0  or t_j-t_sink < 0? -->
-here, $\hat{w}_0=1$.
-Determine prefactor for the H-tensors including bootstraps: m_ds/exp(m_ds*dt)/C_2
+<!-- here, $\hat{w}_0=1$. -->
+Determine prefactor for the H-tensors including bootstraps: $\frac{m_{D_s}}{\exp(m_{D_s} \cdot dt)}\cdot \frac{1}{C_2}$
+For now, take mass from bootstrapfit, to match the resampling procedure for $C_4$.
 ```{r}
-mds <- c(smearmatrix$t0[1], smearmatrix$t[,1])
+# mds <- c(smearmatrix$t0[1], smearmatrix$t[,1])
+mds <- c(scalarsmearedeffmass$effmassfit$t0[1], scalarsmearedeffmass$effmassfit$t[,1])
 dt <- tins-tsink
 expmdsdt <- exp(mds*dt)
 mdsoverexpmdsdt <- mds / expmdsdt
@@ -215,7 +280,6 @@ Determine $Y$ and $Z$ from the data.
 ```{r}
 yone <- coneone+ctwotwo
 yfour <- multiplycfscalar(czerothree+cthreezero, 0.5)
-# yfour <- cthreezero
 yfive <- conetwo-ctwoone
 
 yone <- dividebyreal.cf(multiplycfscalar(yone, 0.5), denom)
@@ -223,6 +287,7 @@ ytwo <- dividebyreal.cf(czerozero, denom)
 ythree <- dividebyreal.cf(multiplycfscalar(cthreethree, -1), denom)
 yfour <- dividebyreal.cf(multiplycfscalar(yfour, -1), denom)
 yfive <- dividebyreal.cf(multiplycfscalar(yfive, 0.5), denom)
+
 
 ```
 ```{r}
@@ -298,20 +363,29 @@ plotwitherror(x=seq(1, 48), y=data_christiane$ztwo[2:49], dy=data_christiane$dzt
 <!-- M_21 is pretty different, but all results are zero within errors, similar for first values of C_30 -->
 
 
-compare masses to Antonio: masses fit very well
+compare masses to Antonio: masses fit very well, for result from smeared correlator deviation seems to be about machine precision (between 3e-15 for t=1 and 5e-37 for t=64). 
+The results from the matrix fit are not symmetrised, so the deviation jumps to 8e-4 for t=65. 
+However, for the determination of the mass we are only interested in t in (0, 64), so this does not matter. 
+Comparison with the resymmetrised results shows the deviation is about machine precision even for t>64.
+
 ```{r , echo=FALSE, eval=TRUE}
 data_a_mass <- read.table("H_iset0_antonio_2.dat", header=FALSE)
 # length(data_a_mass$V1)#, col.names = ("t", "m", "dm", "V4", "V5", "V6", "V7"))
-# plotwitherror(x=data_a_mass$V1[1:128], y=data_a_mass$V2[1:128]-smearmatrix$CF$Cor[1:128], dy=sqrt(data_a_mass$V3[1:128]**2+smearmatrix$CF$Cor[1:128]**2), main= "C_2 antonio vs christiane (from matrixfit used for determining effmass)")
+# plotwitherror(x=data_a_mass$V1[1:128], y=data_a_mass$V2[1:128]-smearmatrix$CF$Cor[1:128], dy=sqrt(data_a_mass$V3[1:128]**2+smearmatrix$CF$Cor[1:128]**2), main= "C_2 antonio vs christiane (from matrixfit used for determining effmass)", xlim=c(0, 65), ylim=c(-3e-15, 3e-15), xlab="t/a", ylab="deviation m_eff")
+# plotwitherror(x=data_a_mass$V1[1:128], y=2*(data_a_mass$V2[1:128]-smearmatrix$CF$Cor[1:128])/(data_a_mass$V2[1:128]+smearmatrix$CF$Cor[1:128]), main= "C_2 antonio vs christiane matrixfit, relative deviation (difference over mean)", xlim=c(0, 65), xlab="t/a", ylab="relative deviation m_eff")
 plotwitherror(x=data_a_mass$V1, y=data_a_mass$V2-scalarsmearedalltimeslices$cf0, dy=sqrt(data_a_mass$V3^2+scalarsmearedalltimeslices$tsboot.se^2), ylim=c(-1e-18, 1e-18), main="C_2 antonio vs christiane(from re-symmetrised effective mass fit")
-print(data_a_mass$V2-smearmatrix$CF$Cor)
-print(data_a_mass$V2-scalarsmearedalltimeslices$cf0-data_a_mass$V3)
+plotwitherror(x=data_a_mass$V1, y=abs(data_a_mass$V2-scalarsmearedalltimeslices$cf0), dy=sqrt(data_a_mass$V3^2+scalarsmearedalltimeslices$tsboot.se^2), log="y", main="abs value C_2 antonio vs christiane(from re-symmetrised effective mass fit", ylim=c(1e-38, 1e-14))
+
+# print(data_a_mass$V2-smearmatrix$CF$Cor)
+# print(data_a_mass$V2-scalarsmearedalltimeslices$cf0)
+# print(data_a_mass$V2-scalarsmeared$cf0)
 ```
 
-Compare Z Antonio and Christiane.
+Compare Z Antonio and Christiane. At first glance, the results match up very well, however when zooming in we see that there are some slight deviations, very well contained within the errors. 
+<!-- The relative deviations (difference over mean of the results) are smaller than 1e-4. -->
 
 ```{r, echo=FALSE, eval=TRUE}
-# pdf("compareZ.pdf", title="")
+# pdf("compareZeffmasssolve.pdf", title="")
 plotwitherror(x=seq(1, 48), y=dataantonio$Z0[2:49], dy=dataantonio$dZ0[2:49], xlab="t", ylab="Z^0", main="Z^0 by Antonio and Christiane", log="y")
 plotwitherror(x=seq(1, 48), y=data_christiane$zzero[2:49], dy=data_christiane$dzzero[2:49], col=2, pch=2, rep=TRUE)
   legend(x="topright", legend=c("Antonio", "Christiane"), col=c(1, 2), pch=c(1, 2))
@@ -328,12 +402,20 @@ plotwitherror(x=dataantonio$t[1:49], y=(-data_christiane$zone[1:49]+dataantonio$
 lines(x=seq(-10, 58), y=rep(0, 69))
 plotwitherror(x=dataantonio$t[1:49], y=(-data_christiane$ztwo[1:49]+dataantonio$Z2[1:49]), dy=sqrt(data_christiane$dztwo[1:49]^2+dataantonio$dZ2[1:49]^2), main="Z_2 antonio vs Z_2 christiane", ylim=c(-1e-2, 1e-2), xlab="t", ylab="deviation")
 lines(x=seq(-10, 58), y=rep(0, 69))
+# 
+# plotwitherror(x=dataantonio$t[1:49], y=(-data_christiane$zzero[1:49]+dataantonio$Z0[1:49]), dy=sqrt(data_christiane$dzzero[1:49]^2+dataantonio$dZ0[1:49]^2), main="Z_0 antonio vs Z_0 christiane", ylim=c(-1e-6, 1e-6), xlab="t", ylab="deviation")
+# lines(x=seq(-10, 58), y=rep(0, 69))
+# plotwitherror(x=dataantonio$t[1:49], y=(-data_christiane$zone[1:49]+dataantonio$Z1[1:49]), dy=sqrt(data_christiane$dzone[1:49]^2+dataantonio$dZ1[1:49]^2), main="Z_1 antonio vs Z_1 christiane", ylim=c(-1e-6, 1e-6), xlab="t", ylab="deviation")
+# lines(x=seq(-10, 58), y=rep(0, 69))
+# plotwitherror(x=dataantonio$t[1:49], y=(-data_christiane$ztwo[1:49]+dataantonio$Z2[1:49]), dy=sqrt(data_christiane$dztwo[1:49]^2+dataantonio$dZ2[1:49]^2), main="Z_2 antonio vs Z_2 christiane", ylim=c(-1e-6, 1e-6), xlab="t", ylab="deviation")
+# lines(x=seq(-10, 58), y=rep(0, 69))
 
-plotwitherror(x=dataantonio$t[1:49], y=(-data_christiane$zzero[1:49]+dataantonio$Z0[1:49]), dy=sqrt(data_christiane$dzzero[1:49]^2+dataantonio$dZ0[1:49]^2), main="Z_0 antonio vs Z_0 christiane", ylim=c(-1e-5, 1e-5), xlab="t", ylab="deviation")
+ylim <- c(-1e-3, 1e-3)
+plotwitherror(x=dataantonio$t[1:49], y=2*(-data_christiane$zzero[1:49]+dataantonio$Z0[1:49])/(dataantonio$Z0[1:49]+data_christiane$zzero[1:49]), main="relative deviation Z_0 antonio vs Z_0 christiane (difference over mean)", xlab="t", ylab="deviation", ylim=ylim)
 lines(x=seq(-10, 58), y=rep(0, 69))
-plotwitherror(x=dataantonio$t[1:49], y=(-data_christiane$zone[1:49]+dataantonio$Z1[1:49]), dy=sqrt(data_christiane$dzone[1:49]^2+dataantonio$dZ1[1:49]^2), main="Z_1 antonio vs Z_1 christiane", ylim=c(-1e-5, 1e-5), xlab="t", ylab="deviation")
+plotwitherror(x=dataantonio$t[1:49], y=2*(-data_christiane$zone[1:49]+dataantonio$Z1[1:49])/(dataantonio$Z0[1:49]+data_christiane$zzero[1:49]), main="relative deviation Z_1 antonio vs Z_1 christiane (difference over mean)", ylim=ylim, xlab="t", ylab="deviation")
 lines(x=seq(-10, 58), y=rep(0, 69))
-plotwitherror(x=dataantonio$t[1:49], y=(-data_christiane$ztwo[1:49]+dataantonio$Z2[1:49]), dy=sqrt(data_christiane$dztwo[1:49]^2+dataantonio$dZ2[1:49]^2), main="Z_2 antonio vs Z_2 christiane", ylim=c(-1e-5, 1e-5), xlab="t", ylab="deviation")
+plotwitherror(x=dataantonio$t[1:49], y=2*(-data_christiane$ztwo[1:49]+dataantonio$Z2[1:49])/(dataantonio$Z0[1:49]+data_christiane$zzero[1:49]), main="relative deviation Z_2 antonio vs Z_2 christiane (difference over mean)", ylim=ylim, xlab="t", ylab="deviation")
 lines(x=seq(-10, 58), y=rep(0, 69))
 ```
 
@@ -349,4 +431,6 @@ summary <- data.frame(
 )
 knitr::kable(summary)
 ```
-The factor 1/2 in $Y^4$ and $Y^5$ comes from the paper, the factor in $Y^1$ comes from the fact we are averaging over two normal vectors.
+
+Antonio wrote that the additional factor $\frac{1}{2}$ in $Y^1$ comes from the fact that the contribution is equally split between two unit vectors.  This is not the case for the other $Y$.
+The factor $\frac{1}{2}$ in $Y^4$ and $Y^5$ comes from the paper.

@@ -135,5 +135,8 @@ dividebyreal.cf <- function(cf1, cf2) {
       }
     }
     else cf <- invalidate.samples.cf(cf)
+    # print(c(inherits(cf1, 'cf_boot'), inherits(cf2, 'cf_boot'),
+    #   all(dim(cf1$cf.tsboot$t) == dim(cf2$cf.tsboot$t)),
+    #   cf1$seed == cf2$seed, cf1$boot.l == cf2$boot.l))
     return (cf)
   }
