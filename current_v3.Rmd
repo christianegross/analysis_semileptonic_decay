@@ -25,7 +25,7 @@ filelist <- substr(filelist, 1, nchar(filelist[1])-17)
 tsink <- 64
 tins <- 48
 bootl <- 1
-bootsamples <- 100
+bootsamples <- 199
 # print(filelist)
 
 ```
@@ -54,13 +54,15 @@ aa <- readnissatextcf(filelist, smear_combs_to_read=c(paste("mes_contr_H_C_Dth",
         corrtype="general", symmetrise=FALSE, sym.vec=c(1), 
         # combs_to_read=data.frame(op1_idx="C_H", op2_idx=paste("Dth", theta, "_A", mu, "_C_P_H_H_S_H", sep=""), spin_comb="P5P5"))
         combs_to_read=data.frame(op1_idx="C_H", op2_idx=paste("Dth", theta, "_A", nu, "_C_P_H_H_S_H", sep=""), spin_comb=paste("A", mu, "P5", sep="")))
-aa <- bootstrap.cf(aa, boot.R=boot.R, boot.l=boot.l, sim=sim)
+# aa <- bootstrap.cf(aa, boot.R=boot.R, boot.l=boot.l, sim=sim)
+aa <- jackknife.cf(aa, boot.l=boot.l)
 
 vv <- readnissatextcf(filelist, smear_combs_to_read=c(paste("mes_contr_H_C_Dth", theta, "_V_C_P_H_H_S_H", sep="")), Time=Time, 
         corrtype="general", symmetrise=FALSE, sym.vec=c(1), 
         # combs_to_read=data.frame(op1_idx="C_H", op2_idx=paste("Dth", theta, "_V", mu, "_C_P_H_H_S_H", sep=""), spin_comb="P5P5"))
         combs_to_read=data.frame(op1_idx="C_H", op2_idx=paste("Dth", theta, "_V", nu, "_C_P_H_H_S_H", sep=""), spin_comb=paste("V", mu, "P5", sep="")))
-vv <- bootstrap.cf(vv, boot.R=boot.R, boot.l=boot.l, sim=sim)
+# vv <- bootstrap.cf(vv, boot.R=boot.R, boot.l=boot.l, sim=sim)
+vv <- jackknife.cf(vv, boot.l=boot.l)
 
 bootstrapZA <- parametric.bootstrap(boot.R, c(ZA), c(dZA))
 bootstrapZV <- parametric.bootstrap(boot.R, c(ZV), c(dZV))
@@ -77,13 +79,15 @@ av <- readnissatextcf(filelist, smear_combs_to_read=c(paste("mes_contr_H_C_Dth",
         corrtype="general", symmetrise=FALSE, sym.vec=c(1), 
         # combs_to_read=data.frame(op1_idx="C_H", op2_idx=paste("Dth", theta, "_A", mu, "_C_P_H_H_S_H", sep=""), spin_comb="P5P5"))
         combs_to_read=data.frame(op1_idx="C_H", op2_idx=paste("Dth", theta, "_V", nu, "_C_P_H_H_S_H", sep=""), spin_comb=paste("A", mu, "P5", sep="")))
-av <- bootstrap.cf(av, boot.R=boot.R, boot.l=boot.l, sim=sim)
+# av <- bootstrap.cf(av, boot.R=boot.R, boot.l=boot.l, sim=sim)
+av <- jackknife.cf(av, boot.l=boot.l)
 
 va <- readnissatextcf(filelist, smear_combs_to_read=c(paste("mes_contr_H_C_Dth", theta, "_A_C_P_H_H_S_H", sep="")), Time=Time, 
         corrtype="general", symmetrise=FALSE, sym.vec=c(1), 
         # combs_to_read=data.frame(op1_idx="C_H", op2_idx=paste("Dth", theta, "_V", mu, "_C_P_H_H_S_H", sep=""), spin_comb="P5P5"))
         combs_to_read=data.frame(op1_idx="C_H", op2_idx=paste("Dth", theta, "_A", nu, "_C_P_H_H_S_H", sep=""), spin_comb=paste("V", mu, "P5", sep="")))
-va <- bootstrap.cf(va, boot.R=boot.R, boot.l=boot.l, sim=sim)
+# va <- bootstrap.cf(va, boot.R=boot.R, boot.l=boot.l, sim=sim)
+va <- jackknife.cf(va, boot.l=boot.l)
 
 bootstrapZA <- parametric.bootstrap(boot.R, c(ZA), c(dZA))
 bootstrapZV <- parametric.bootstrap(boot.R, c(ZV), c(dZV))
@@ -138,12 +142,13 @@ plot(scalarsmeared, log="y", xlab="t/a", ylab="C(t)", main="smeared-smeared two 
 
 Use effective mass to get a sense of boundaries for following matrixfit.
 In the following, use Antonios fitrange, 15-48, everywhere.
+Further examination of Antonios data shows that he assigns the ratio of $t, t+1$ to $t+1$, but hadron assigns it to $t$, so Anotnios range $15-48$ corrresponds to $14-47$ in hadron.
 <!-- (the matrixfitresuult for 16 to 37 reproduces that of Antonio the most closely.) -->
 Goal: reproduce Antonios results for the effective mass
 
 ```{r, echo=FALSE, eval=TRUE}
 scalarsmearedeffmass <- bootstrap.effectivemass(scalarsmeared, type="solve")
-scalarsmearedeffmass <- fit.effectivemass(scalarsmearedeffmass, t1=15, t2=48, useCov=FALSE)
+scalarsmearedeffmass <- fit.effectivemass(scalarsmearedeffmass, t1=14, t2=47, useCov=FALSE)
 plot(scalarsmearedeffmass, ylim=c(0.79, 0.82), xlab="t/a", ylab="m_eff(t)", main="smeared-smeared two point function")
 plot(scalarsmearedeffmass, xlab="t/a", ylab="m_eff(t)", main="smeared-smeared two point function")
 # print(scalarsmearedeffmass$effMass)
@@ -179,7 +184,7 @@ scalarsmearedjk <- jackknife.cf(scalarsmearedjk, boot.l=bootl)
 scalarsmearedjkalltimeslices <- unsymmetrise.cf(scalarsmearedjk)
 
 scalarsmearedjkeffmass <- bootstrap.effectivemass(scalarsmearedjk, type="solve")
-scalarsmearedjkeffmass <- fit.effectivemass(scalarsmearedjkeffmass, t1=15, t2=48, useCov=TRUE)
+scalarsmearedjkeffmass <- fit.effectivemass(scalarsmearedjkeffmass, t1=14, t2=47, useCov=FALSE)
 plot(scalarsmearedjkeffmass, ylim=c(0.79, 0.82), xlab="t/a", ylab="m_eff(t)", main="smeared-smeared two point function, jackknife estimators")
 plot(scalarsmearedjkeffmass, xlab="t/a", ylab="m_eff(t)", main="smeared-smeared two point function, jackknife estimators")
 # print(scalarsmearedeffmass$effMass)
@@ -216,13 +221,13 @@ for(t1 in seq(10, 30)){
     # cat(t1, " ", t2, " ", mfit$t0[1], " ", mfit$error_fn(mfit$t[,1]), "\n")
     # reseffmass <- fit.effectivemass(tryeffmass, t1=t1, t2=t2)
     # cat(t1, " ", t2, " ", reseffmass$effmassfit$t0[1], " ", reseffmass$effmassfit$se[1], "\n")
-    reseffmass <- fit.effectivemass(scalarsmearedjkeffmass, t1=t1, t2=t2, useCov=T)
-    newlineeffmass <- data.frame(t1=t1, t2=t2, m=reseffmass$effmassfit$t0[1], dm=reseffmass$effmassfit$se[1], chired=reseffmass$chisqr / reseffmass$dof, p=reseffmass$Qval)
-    resallranges <- rbind(resallranges, newlineeffmass)
+    # reseffmass <- fit.effectivemass(scalarsmearedjkeffmass, t1=t1, t2=t2, useCov=T)
+    # newlineeffmass <- data.frame(t1=t1, t2=t2, m=reseffmass$effmassfit$t0[1], dm=reseffmass$effmassfit$se[1], chired=reseffmass$chisqr / reseffmass$dof, p=reseffmass$Qval)
+    # resallranges <- rbind(resallranges, newlineeffmass)
   }
 }
 print(resallranges)
-write.table(resallranges, file="resultseffectivemassjackknifeusecovtrue.csv", row.names=F, col.names=T)
+# write.table(resallranges, file="resultseffectivemassjackknifeusecovtrue.csv", row.names=F, col.names=T)
 ```
 
 
@@ -238,7 +243,7 @@ ZV <- 1
 dZA <- 0
 dZV <- 0
 czerozero <- getcmunu(filellist = filelist, mu=0, nu=0, boot.R=bootsamples, ZA=ZA, ZV=ZV, dZA=dZA, dZV=dZV, w2=1, boot.l=bootl, symmetric=T, unsymmetric=F)
-plot(czerozero, xlab="t/a", ylab="C_00(t)", main="C_00", xlim=c(0, 48), log="y")
+# plot(czerozero, xlab="t/a", ylab="C_00(t)", main="C_00", xlim=c(0, 48), log="y")
 
 
 ```
@@ -264,12 +269,14 @@ Determine prefactor for the H-tensors including bootstraps: $\frac{m_{D_s}}{\exp
 For now, take mass from bootstrapfit, to match the resampling procedure for $C_4$.
 ```{r}
 # mds <- c(smearmatrix$t0[1], smearmatrix$t[,1])
-mds <- c(scalarsmearedeffmass$effmassfit$t0[1], scalarsmearedeffmass$effmassfit$t[,1])
+# mds <- c(scalarsmearedeffmass$effmassfit$t0[1], scalarsmearedeffmass$effmassfit$t[,1])
+mds <- c(scalarsmearedjkeffmass$effmassfit$t0[1], scalarsmearedjkeffmass$effmassfit$t[,1])
 dt <- tins-tsink
 expmdsdt <- exp(mds*dt)
 mdsoverexpmdsdt <- mds / expmdsdt
 expovermds <- expmdsdt / mds
-denom <- multiplycfbootstrap(scalarsmearedalltimeslices, expovermds[1], expovermds[2:length(mds)])
+# denom <- multiplycfbootstrap(scalarsmearedalltimeslices, expovermds[1], expovermds[2:length(mds)])
+denom <- multiplycfbootstrap(scalarsmearedjkalltimeslices, expovermds[1], expovermds[2:length(mds)])
 ```
 
 
@@ -316,72 +323,47 @@ write.table(data_christiane, "correlators_christiane_th0_tins48.csv", row.names=
 ```
 
 ```{r, echo=FALSE, eval=TRUE}
-dataantonio <- read.table("z0_iset0_antonio.dat", header=F, col.names = c("t", "Z0", "dZ0", "Z1", "dZ1", "Z2", "dZ2"))
+dataantonio <- read.table("Antonio_Jackknife/z0_iset0.dat", header=F, col.names = c("t", "Z0", "dZ0", "Z1", "dZ1", "Z2", "dZ2"))
+# dataantonio <- read.table("z0_iset0_antonio.dat", header=F, col.names = c("t", "Z0", "dZ0", "Z1", "dZ1", "Z2", "dZ2"))
 ```
-
-<!-- Comparisons -->
-```{r, eval=FALSE, echo=FALSE}
-data_marco <- read.table("correlators_marco_th0_tins48.csv", header=T, sep=",")
-print(data_marco)
-plotwitherror(x=data_marco$t[2:64], y=data_marco$c2[2:64]-scalarsmearedeffmass$effMass[2:64], dy=sqrt(data_marco$dc2[2:64]^2+scalarsmearedeffmass$deffMass[2:64]^2), ylim=c(-0.001, 0.001), main="mass c2 marco vs christiane")
-lines(x=seq(0, 80), y=rep(0, 81), col=c(1))
-plotwitherror(x=data_marco$t[2:48], y=data_marco$c4[2:48]-data_christiane$ytwo[2:48], dy=sqrt(data_marco$dc4[2:48]^2+data_christiane$dy2[2:48]^2), main="M_00 marco vs ytwo christiane", ylim=c(-1e-3, 1e-3))
-plotwitherror(x=data_marco$t[2:48], y=data_marco$zzero[2:48]-dataantonio$Z0[2:48], dy=sqrt(data_marco$dzzero[2:48]^2+dataantonio$dZ0[2:48]^2), main="Z_0 marco vs Z_0 antonio")
-lines(x=seq(0, 80), y=rep(0, 81), col=c(1))
-plotwitherror(x=data_marco$t[2:49], y=data_marco$zzero[2:49]-data_christiane$zzero[2:49], dy=sqrt(data_marco$dzzero[2:49]^2+data_christiane$dzzero[2:49]^2), main="Z_0 marco vs Z_0 christiane", ylim=c(-1e-2, 1e-2))
-lines(x=seq(0, 80), y=rep(0, 81), col=c(1))
-plotwitherror(x=data_marco$t[2:49], y=data_marco$zone[2:49]-data_christiane$zone[2:49], dy=sqrt(data_marco$dzone[2:49]^2+data_christiane$dzone[2:49]^2), main="Z_1 marco vs christiane", ylim=c(-1e-2, 1e-2))
-lines(x=seq(0, 80), y=rep(0, 81), col=c(1))
-plotwitherror(x=data_marco$t[2:49], y=data_marco$ztwo[2:49]-data_christiane$ztwo[2:49], dy=sqrt(data_marco$dztwo[2:49]^2+data_christiane$dztwo[2:49]^2), main="Z_2 marco vs christiane", ylim=c(-1e-2, 1e-2))
-lines(x=seq(0, 80), y=rep(0, 81), col=c(1))
-print(data.frame(data_marco$zzero ,data_marco$dzzero, data_christiane$zzero, data_christiane$dzzero))
-```
-
-<!-- More comparisons -->
-```{r, eval=FALSE, echo=FALSE}
-# pdf("compareZcorr_donotdivideimag.pdf", title="")
-plotwitherror(x=seq(1, 48), y=data_marco$zzero[2:49], dy=data_marco$dzzero[2:49], xlab="t", ylab="Z^0", main="Z^0 by Marco and Christiane", log="y")
-plotwitherror(x=seq(1, 48), y=data_christiane$zzero[2:49], dy=data_christiane$dzzero[2:49], col=2, pch=2, rep=TRUE)
-  legend(x="topright", legend=c("Marco", "Christiane"), col=c(1, 2), pch=c(1, 2))
-plotwitherror(x=seq(1, 48), y=data_marco$zone[2:49], dy=data_marco$dzone[2:49], xlab="t", ylab="Z^1", main="Z^1 by Marco and Christiane", log="y")
-plotwitherror(x=seq(1, 48), y=data_christiane$zone[2:49], dy=data_christiane$dzone[2:49], col=2, pch=2, rep=TRUE)
-  legend(x="topright", legend=c("Marco", "Christiane"), col=c(1, 2), pch=c(1, 2))
-plotwitherror(x=seq(1, 48), y=data_marco$ztwo[2:49], dy=data_marco$dztwo[2:49], xlab="t", ylab="Z^2", main="Z^2 by Marco and Christiane", log="y")
-plotwitherror(x=seq(1, 48), y=data_christiane$ztwo[2:49], dy=data_christiane$dztwo[2:49], col=2, pch=2, rep=TRUE)
-  legend(x="topright", legend=c("Marco", "Christiane"), col=c(1, 2), pch=c(1, 2))
-```
-
-
-<!-- y^1 11+22 -->
-<!-- y^2 00 -->
-<!-- y^3 -33 -->
-<!-- y^4 Im(-03) -->
-<!-- y^5 IM(12-21) / 2 -->
-
-
-<!-- Comparing directly the M to those of Marco: -->
-<!-- M_21 is pretty different, but all results are zero within errors, similar for first values of C_30 -->
-
 
 compare masses to Antonio: masses fit very well, for result from smeared correlator deviation seems to be about machine precision (between 3e-15 for t=1 and 5e-37 for t=64). 
 The results from the matrix fit are not symmetrised, so the deviation jumps to 8e-4 for t=65. 
 However, for the determination of the mass we are only interested in t in (0, 64), so this does not matter. 
 Comparison with the resymmetrised results shows the deviation is about machine precision even for t>64.
+This is true for bootstraps and jackknifed data.
+The effective mass results of the jackknife match up well:
+Christianes effective mass is `r scalarsmearedjkeffmass$effmassfit$t0[1]` $\pm$ `r scalarsmearedjkeffmass$effmassfit$se[1]`, Antonios is $7.9995453694e-01 \pm 1.9349795130e-04$.
+<!-- [1] 0.7999553 -->
+<!-- [1] 0.0001915896 -->
+So the deviation between the means is $7.43e-07$, or $0.4\%$ of the errors, and the deviation between the errors is $1.91e-06$, $1\%$ of the errors.
 
 ```{r , echo=FALSE, eval=TRUE}
-data_a_mass <- read.table("H_iset0_antonio_2.dat", header=FALSE)
+data_a_mass <- read.table("Antonio_Jackknife/H_iset0.dat", header=FALSE, nrow=64)
+# data_a_mass <- read.table("H_iset0_antonio_2.dat", header=FALSE)
 # length(data_a_mass$V1)#, col.names = ("t", "m", "dm", "V4", "V5", "V6", "V7"))
 # plotwitherror(x=data_a_mass$V1[1:128], y=data_a_mass$V2[1:128]-smearmatrix$CF$Cor[1:128], dy=sqrt(data_a_mass$V3[1:128]**2+smearmatrix$CF$Cor[1:128]**2), main= "C_2 antonio vs christiane (from matrixfit used for determining effmass)", xlim=c(0, 65), ylim=c(-3e-15, 3e-15), xlab="t/a", ylab="deviation m_eff")
 # plotwitherror(x=data_a_mass$V1[1:128], y=2*(data_a_mass$V2[1:128]-smearmatrix$CF$Cor[1:128])/(data_a_mass$V2[1:128]+smearmatrix$CF$Cor[1:128]), main= "C_2 antonio vs christiane matrixfit, relative deviation (difference over mean)", xlim=c(0, 65), xlab="t/a", ylab="relative deviation m_eff")
-plotwitherror(x=data_a_mass$V1, y=data_a_mass$V2-scalarsmearedalltimeslices$cf0, dy=sqrt(data_a_mass$V3^2+scalarsmearedalltimeslices$tsboot.se^2), ylim=c(-1e-18, 1e-18), main="C_2 antonio vs christiane(from re-symmetrised effective mass fit")
-plotwitherror(x=data_a_mass$V1, y=abs(data_a_mass$V2-scalarsmearedalltimeslices$cf0), dy=sqrt(data_a_mass$V3^2+scalarsmearedalltimeslices$tsboot.se^2), log="y", main="abs value C_2 antonio vs christiane(from re-symmetrised effective mass fit", ylim=c(1e-38, 1e-14))
+# plotwitherror(x=data_a_mass$V1[1:64], y=data_a_mass$V2[1:64]-scalarsmearedalltimeslices$cf0[1:64], dy=sqrt(data_a_mass$V3[1:64]^2+scalarsmearedalltimeslices$tsboot.se[1:64]^2), ylim=c(-1e-18, 1e-18), main="C_2 antonio vs christiane(from re-symmetrised effective mass fit")
+# plotwitherror(x=data_a_mass$V1[1:64], y=abs(data_a_mass$V2[1:64]-scalarsmearedalltimeslices$cf0[1:64]), dy=sqrt(data_a_mass$V3[1:64]^2+scalarsmearedalltimeslices$tsboot.se[1:64]^2), log="y", main="abs value C_2 antonio vs christiane(from re-symmetrised effective mass fit", ylim=c(1e-38, 1e-14))
+# plotwitherror(x=data_a_mass$V1[1:64], y=data_a_mass$V2[1:64]-scalarsmearedjkalltimeslices$cf0[1:64], dy=sqrt(data_a_mass$V3[1:64]^2+scalarsmearedjkalltimeslices$tsboot.se[1:64]^2), ylim=c(-1e-18, 1e-18), main="C_2 antonio vs christiane(from re-symmetrised effective mass fit")
+plotwitherror(x=data_a_mass$V1[1:64], y=abs(data_a_mass$V2[1:64]-scalarsmearedjkalltimeslices$cf0[1:64]), dy=sqrt(data_a_mass$V3[1:64]^2+scalarsmearedjkalltimeslices$tsboot.se[1:64]^2), log="y", main="abs value C_2 antonio vs christiane(from re-symmetrised effective mass fit", ylim=c(1e-38, 1e-14))
+
+plotwitherror(x=data_a_mass$V1[2:63], y=abs(data_a_mass$V4[2:63]-scalarsmearedjkeffmass$effMass[1:62]), 
+              dy=sqrt((data_a_mass$V5[2:63])^2+(scalarsmearedjkeffmass$deffMass[1:62])^2), 
+              log="y", ylim=c(1e-8, 2e-2), xlab="t/a", ylab="Delta m_eff", main="deviation effective masses")
+
+print(data_a_mass$V4[2:64]-scalarsmearedjkeffmass$effMass[1:63])
+print(data_a_mass$V4[2:64])
 
 # print(data_a_mass$V2-smearmatrix$CF$Cor)
 # print(data_a_mass$V2-scalarsmearedalltimeslices$cf0)
 # print(data_a_mass$V2-scalarsmeared$cf0)
 ```
 
-Compare Z Antonio and Christiane. At first glance, the results match up very well, however when zooming in we see that there are some slight deviations, very well contained within the errors. 
+Compare Z Antonio and Christiane. At first glance, the results match up very well, however when zooming in we see that there are some slight deviations, very well contained within the errors.
+The deviations of the means are all below 1e-03 of the errors, the deviations of the errors is up to ten times as large as the deviation of the means, but still the relative deviations are below $10\%$.
+the relative deviations of the means are within 1e-04.
 <!-- The relative deviations (difference over mean of the results) are smaller than 1e-4. -->
 
 ```{r, echo=FALSE, eval=TRUE}
@@ -396,12 +378,42 @@ plotwitherror(x=seq(1, 48), y=dataantonio$Z2[2:49], dy=dataantonio$dZ2[2:49], xl
 plotwitherror(x=seq(1, 48), y=data_christiane$ztwo[2:49], dy=data_christiane$dztwo[2:49], col=2, pch=2, rep=TRUE)
   legend(x="topright", legend=c("Antonio", "Christiane"), col=c(1, 2), pch=c(1, 2))
 
-plotwitherror(x=dataantonio$t[1:49], y=(-data_christiane$zzero[1:49]+dataantonio$Z0[1:49]), dy=sqrt(data_christiane$dzzero[1:49]^2+dataantonio$dZ0[1:49]^2), main="Z_0 antonio vs Z_0 christiane", ylim=c(-1e-2, 1e-2), xlab="t", ylab="deviation")
+plotwitherror(x=dataantonio$t[1:49], y=(-data_christiane$zzero[1:49]+dataantonio$Z0[1:49]), dy=sqrt(data_christiane$dzzero[1:49]^2+dataantonio$dZ0[1:49]^2), main="Z_0 antonio vs Z_0 christiane", ylim=c(-1e-4, 1e-4), xlab="t", ylab="deviation")
 lines(x=seq(-10, 58), y=rep(0, 69))
-plotwitherror(x=dataantonio$t[1:49], y=(-data_christiane$zone[1:49]+dataantonio$Z1[1:49]), dy=sqrt(data_christiane$dzone[1:49]^2+dataantonio$dZ1[1:49]^2), main="Z_1 antonio vs Z_1 christiane", ylim=c(-1e-2, 1e-2), xlab="t", ylab="deviation")
+plotwitherror(x=dataantonio$t[1:49], y=(-data_christiane$zone[1:49]+dataantonio$Z1[1:49]), dy=sqrt(data_christiane$dzone[1:49]^2+dataantonio$dZ1[1:49]^2), main="Z_1 antonio vs Z_1 christiane", ylim=c(-1e-4, 1e-4), xlab="t", ylab="deviation")
 lines(x=seq(-10, 58), y=rep(0, 69))
-plotwitherror(x=dataantonio$t[1:49], y=(-data_christiane$ztwo[1:49]+dataantonio$Z2[1:49]), dy=sqrt(data_christiane$dztwo[1:49]^2+dataantonio$dZ2[1:49]^2), main="Z_2 antonio vs Z_2 christiane", ylim=c(-1e-2, 1e-2), xlab="t", ylab="deviation")
+plotwitherror(x=dataantonio$t[1:49], y=(-data_christiane$ztwo[1:49]+dataantonio$Z2[1:49]), dy=sqrt(data_christiane$dztwo[1:49]^2+dataantonio$dZ2[1:49]^2), main="Z_2 antonio vs Z_2 christiane", ylim=c(-1e-4, 1e-4), xlab="t", ylab="deviation")
 lines(x=seq(-10, 58), y=rep(0, 69))
+
+#
+plotwitherror(x=dataantonio$t[1:49], y=(-data_christiane$dzzero[1:49]+dataantonio$dZ0[1:49]), main="errors Z_0 antonio vs errors Z_0 christiane", xlab="t", ylab="deviation of errors")
+lines(x=seq(-10, 58), y=rep(0, 69))
+# plotwitherror(x=dataantonio$t[1:49], y=(-data_christiane$dzone[1:49]+dataantonio$dZ1[1:49]), main="errors Z_1 antonio vs errors Z_1 christiane", xlab="t", ylab="deviation of errors")
+# lines(x=seq(-10, 58), y=rep(0, 69))
+# plotwitherror(x=dataantonio$t[1:49], y=(-data_christiane$dztwo[1:49]+dataantonio$dZ2[1:49]), main="errors Z_2 antonio vs errors Z_2 christiane", xlab="t", ylab="deviation of errors")
+# lines(x=seq(-10, 58), y=rep(0, 69))
+# 
+
+plotwitherror(x=dataantonio$t[1:49], y=2*(-data_christiane$dzzero[1:49]+dataantonio$dZ0[1:49])/(+data_christiane$dzzero[1:49]+dataantonio$dZ0[1:49]), main="errors Z_0 antonio vs errors Z_0 christiane", xlab="t", ylab="relative deviation of errors")
+lines(x=seq(-10, 58), y=rep(0, 69))
+
+plotwitherror(x=dataantonio$t[1:49], y=2*(-data_christiane$dzone[1:49]+dataantonio$dZ1[1:49])/(+data_christiane$dzone[1:49]+dataantonio$dZ1[1:49]), main="errors Z_0 antonio vs errors Z_0 christiane", xlab="t", ylab="relative deviation of errors")
+lines(x=seq(-10, 58), y=rep(0, 69))
+
+plotwitherror(x=dataantonio$t[1:49], y=2*(-data_christiane$dztwo[1:49]+dataantonio$dZ2[1:49])/(+data_christiane$dztwo[1:49]+dataantonio$dZ2[1:49]), main="errors Z_0 antonio vs errors Z_0 christiane", xlab="t", ylab="relative deviation of errors")
+lines(x=seq(-10, 58), y=rep(0, 69))
+
+plotwitherror(x=dataantonio$t[1:49], y=(-data_christiane$zzero[1:49]+dataantonio$Z0[1:49])/dataantonio$dZ0[1:49],  main="Z_0 antonio vs Z_0 christiane, deviation over error", xlab="t", ylab="deviation")
+lines(x=seq(-10, 58), y=rep(0, 69))
+# plotwitherror(x=dataantonio$t[1:49], y=(-data_christiane$zone[1:49]+dataantonio$Z1[1:49])/dataantonio$dZ1[1:49],  main="Z_1 antonio vs Z_1 christiane, deviation over error", xlab="t", ylab="deviation")
+# lines(x=seq(-10, 58), y=rep(0, 69))
+# plotwitherror(x=dataantonio$t[1:49], y=(-data_christiane$ztwo[1:49]+dataantonio$Z2[1:49])/dataantonio$dZ1[1:49],  main="Z_2 antonio vs Z_2 christiane, deviation over error", xlab="t", ylab="deviation")
+# lines(x=seq(-10, 58), y=rep(0, 69))
+
+# plotwitherror(x=dataantonio$t[1:49], y=(-data_christiane$zone[1:49]+dataantonio$Z1[1:49])/(-data_christiane$dzzero[1:49]+dataantonio$dZ0[1:49]),  main="Z_1 antonio vs Z_1 christiane, deviation over deviation errors", xlab="t", ylab="deviation")
+# lines(x=seq(-10, 58), y=rep(0, 69))
+# plotwitherror(x=dataantonio$t[1:49], y=(-data_christiane$ztwo[1:49]+dataantonio$Z2[1:49])/(-data_christiane$dzzero[1:49]+dataantonio$dZ0[1:49]),  main="Z_2 antonio vs Z_2 christiane, deviation over deviation errors", xlab="t", ylab="deviation")
+# lines(x=seq(-10, 58), y=rep(0, 69))
 # 
 # plotwitherror(x=dataantonio$t[1:49], y=(-data_christiane$zzero[1:49]+dataantonio$Z0[1:49]), dy=sqrt(data_christiane$dzzero[1:49]^2+dataantonio$dZ0[1:49]^2), main="Z_0 antonio vs Z_0 christiane", ylim=c(-1e-6, 1e-6), xlab="t", ylab="deviation")
 # lines(x=seq(-10, 58), y=rep(0, 69))
@@ -410,7 +422,7 @@ lines(x=seq(-10, 58), y=rep(0, 69))
 # plotwitherror(x=dataantonio$t[1:49], y=(-data_christiane$ztwo[1:49]+dataantonio$Z2[1:49]), dy=sqrt(data_christiane$dztwo[1:49]^2+dataantonio$dZ2[1:49]^2), main="Z_2 antonio vs Z_2 christiane", ylim=c(-1e-6, 1e-6), xlab="t", ylab="deviation")
 # lines(x=seq(-10, 58), y=rep(0, 69))
 
-ylim <- c(-1e-3, 1e-3)
+ylim <- c(-1e-4, 1e-4)
 plotwitherror(x=dataantonio$t[1:49], y=2*(-data_christiane$zzero[1:49]+dataantonio$Z0[1:49])/(dataantonio$Z0[1:49]+data_christiane$zzero[1:49]), main="relative deviation Z_0 antonio vs Z_0 christiane (difference over mean)", xlab="t", ylab="deviation", ylim=ylim)
 lines(x=seq(-10, 58), y=rep(0, 69))
 plotwitherror(x=dataantonio$t[1:49], y=2*(-data_christiane$zone[1:49]+dataantonio$Z1[1:49])/(dataantonio$Z0[1:49]+data_christiane$zzero[1:49]), main="relative deviation Z_1 antonio vs Z_1 christiane (difference over mean)", ylim=ylim, xlab="t", ylab="deviation")
