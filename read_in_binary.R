@@ -68,10 +68,14 @@ read_jack <- function(to.read, endian="little") {
 #~ }
 
 read_multi_solve <- function(to.read, endian="little", NFUNC = NFUNC) {
+    res            <- list(A0ABCW=list(), A0ABCW_ref=list(), DGDq2boots=list())
     tmp            <- list(sys=NA, nmax=NA, lambda=list(), Bnorm=list(), 
                             A0ABCW=list(), A0ABCW_ref=list(), boottype=list(), bootnumber=list(), 
                             DGDq2mean=list(), DGDq2meanwobias=list(), DGDq2sd=list(), 
                             DGDq2bias=list(), DGDq2boots=list())
+    resdf <- data.frame(nk=NA, nsteps=NA, nm=NA, sys=NA, nmax=NA, lambda=NA, 
+                        Bnorm=NA, boottype=NA, bootnumber=NA, DGDq2mean=NA, 
+                        DGDq2meanwobias=NA, DGDq2sd=NA, DGDq2bias=NA)
     tmp$nk         <- readBin(to.read, "integer", 1, endian)
     tmp$nsteps     <- readBin(to.read, "integer", 1, endian)
     tmp$nm         <- readBin(to.read, "integer", 1, endian)
@@ -150,12 +154,12 @@ read_in_DGDq2 <- function(filename, resultpath="./", endian=.Platform$endian, NC
     
     nsets <- readBin(to.read, "integer", 1, endian)
     
-    result <- list(nsets=nsets, rep(list(), nsets))
+    result <- list(nsets=nsets, rep(NA, nsets))
+    print(result)
+    print(nsets)
     
     for ( iset in seq(1, nsets)) {
-        metadata          <- list()
-        
-        metadata$L        <- readBin(to.read, "integer", 1, endian)
+        metadata          <- data.frame(L=readBin(to.read, "integer", 1, endian))
         metadata$T        <- readBin(to.read, "integer", 1, endian)
         metadata$tsinktj2 <- readBin(to.read, "integer", 1, endian)
         metadata$tj1tsrc  <- readBin(to.read, "integer", 1, endian)
@@ -167,11 +171,18 @@ read_in_DGDq2 <- function(filename, resultpath="./", endian=.Platform$endian, NC
         metadata$eL       <- readBin(to.read, "double",  1, endian)
         metadata$neps     <- readBin(to.read, "integer", 1, endian)
         metadata$nnorm    <- readBin(to.read, "integer", 1, endian)
-        metadata$epsilons <- readBin(to.read, "double",  metadata$neps, endian)
+        print(metadata)
+        epsilons          <- readBin(to.read, "double",  metadata$neps, endian)
+        result[[iset+1]]  <- list()
         result[[iset+1]]$metadata <- metadata
+        result[[iset+1]]$epsilons <- epsilons
         
-        for(idg in seq(1, NDG*NCOMBS*metadata$neps)){
-            name <- paste0("idg", idg)
+        for(idg in seq(0, NDG*NCOMBS*metadata$neps-1)){
+            ## ieps+DG->neps*(icomb+NCOMBS*idg)
+            ieps <- idg %% metadata$neps
+            icomb <- ((idg-ieps)/metadata$neps) %% NCOMBS
+            iz    <- ((idg-ieps)/metadata$neps-icomb)/NCOMBS
+            name <- paste0("idg", idg, "ieps", ieps, "icomb", icomb, "iz", iz)
             tmpres <- read_multi_solve(to.read, endian=endian, NFUNC=NFUNC)
             result[[iset+1]][[name]] <- tmpres
         }
@@ -179,9 +190,11 @@ read_in_DGDq2 <- function(filename, resultpath="./", endian=.Platform$endian, NC
     if(write) {
         saveRDS(result, paste0("DGammaDq2_NCOMBS", NCOMBS, "NDG", NDG, "NFUNC", NFUNC, ".RData"))
     }
+    close(to.read)
     return (result)
 }
 
-read_in_DGDq2(filename="/home/gross/Documents/heavymesons/scripts_alessandro/DGammaDq2.bin", write=TRUE)
+#~ read_in_DGDq2(filename="/home/gross/Documents/heavymesons/data/cB211ab.07.64/t48_64/outputDGammaDq2/DGammaDq2.bin", write=TRUE)
+#~ read_in_DGDq2(filename="/home/gross/Documents/heavymesons/scripts_alessandro/DGammaDq2.bin", write=TRUE)
 
-sort( sapply(ls(),function(x){object.size(get(x))})) 
+#~ sort( sapply(ls(),function(x){object.size(get(x))})) 
