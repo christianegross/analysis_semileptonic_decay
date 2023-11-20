@@ -5,24 +5,14 @@ library(optparse)
 #~ Rscript plot_stability.R --path data/cB211ab.07.64/th6_t52/outputDGammaDq2 --plotpath data/cB211ab.07.64/th6_t52/outputDGammaDq2
 #~ Rscript plot_stability.R --path data/cB211ab.07.64/th6_t56/outputDGammaDq2 --plotpath data/cB211ab.07.64/th6_t56/outputDGammaDq2
 
-#~ Rscript plot_stability.R --path /data/cB211ab.07.64/cov_diag/t48/outputDGammaDq2 --plotpath /data/cB211ab.07.64/cov_diag/t48/outputDGammaDq2
-#~ Rscript plot_stability.R --path /data/cB211ab.07.64/cov_diag/t52/outputDGammaDq2 --plotpath /data/cB211ab.07.64/cov_diag/t52/outputDGammaDq2
-#~ Rscript plot_stability.R --path /data/cB211ab.07.64/cov_diag/t56/outputDGammaDq2 --plotpath /data/cB211ab.07.64/cov_diag/t56/outputDGammaDq2
+#~ Rscript plot_stability.R --path data/cB211ab.07.64/cov_diag/t48/outputDGammaDq2 --plotpath data/cB211ab.07.64/cov_diag/t48/
+#~ Rscript plot_stability.R --path data/cB211ab.07.64/cov_diag/t52/outputDGammaDq2 --plotpath data/cB211ab.07.64/cov_diag/t52/
+#~ Rscript plot_stability.R --path data/cB211ab.07.64/cov_diag/t56/outputDGammaDq2 --plotpath data/cB211ab.07.64/cov_diag/t56/
+#~ Rscript plot_stability.R --path data/cB211ab.07.64/th6_t56_44/outputDGammaDq2 --plotpath data/cB211ab.07.64/th6_t56_44/
 
 if (TRUE) {
     # set option list
 option_list <- list(
-#~     make_option(c("-b", "--beta"), type = "double", default = 1.7,
-#~     help = "beta-Parameter of simulation [default %default]"),
-#~     make_option(c("--skip"), type = "integer", default = 1000,
-#~     help = "how many lines are skipped when reading in [default %default]"),
-
-#~     make_option(c("--aic"), action = "store_true", default = FALSE,
-#~     help = "if true, effective masses are determined with weighting
-#~         according to the akaike information criterion [default %default]"),
-
-#~     help = "path to where the resultfiles are stored [default %default]"),
-#~     make_option(c("--plotpath"), type = "character", default = "",
 make_option(c("--path"), type="character", default="./",
             help = "path to where the data are stored"),
 make_option(c("--plotpath"), type="character", default="./",
@@ -41,7 +31,6 @@ opt <- args$options
 
 pdf(sprintf("%s/stability.pdf", opt$plotpath), title="")
 
-plot(x=seq(0, 10), y=seq(0, 10), col=seq(0, 10), pch=seq(0, 10))
 
 for (iset in seq(0, (opt$nset-1))) {
     for (icomb in seq(0, 4)) {
@@ -50,7 +39,12 @@ for (iset in seq(0, (opt$nset-1))) {
                 filename <- sprintf("%s/DG_%d_iset_%d_ieps_%d_icomb_%d.dat", opt$path, iz, iset, ieps, icomb)
                 title <- sprintf("iz %d iset %d ieps %d icomb %d", iz, iset, ieps, icomb)
 
-                data <- try(read.table(filename, , fill=TRUE,
+## we use fill=TRUE to ensure that all files are read even if they do not have the same length
+## The first lines are details about the norms, three per norm. We delete them.
+## spectreflag tells us if we are looking at the stability plot or reconstructed kernel.
+## resflag tells us if we are looking at the intermediate steps or the result.
+## plot the result as a band first.
+                data <- try(read.table(filename, fill=TRUE,
                         col.names=c("ik", "spectreflag", "lambda_start",
                          "lambdalambda_start", "Bnorm", "A0", "AA0_min",
                          "AA0_ref", "AA0", "BnormB_ref", "BnormB",
@@ -103,15 +97,10 @@ for (iset in seq(0, (opt$nset-1))) {
                 filename <- sprintf("%s/DG_%d_iset_%d_ieps_%d_icomb_%d.dat", opt$path, iz, iset, ieps, icomb)
                 title <- sprintf("iz %d iset %d ieps %d icomb %d", iz, iset, ieps, icomb)
 
-
-# $1= ik
-# $2= spectreflag
-# $3= omega
-# $4= kernel
-# $5= kernelbar
-# $6= kernelbar-kernel
-# $7= aM
-
+## we use fill=TRUE to ensure that all files are read even if they do not have the same length
+## The first lines are details about the norms, three per norm. We delete them.
+## spectreflag tells us if we are looking at the stability plot or reconstructed kernel.
+## columns 8-18 were only needed for the stability plot, so we do not give them names
                 data <- try(read.table(filename, , fill=TRUE,
                         col.names=c("ik", "spectreflag", "omega",
                          "kernel", "kernelbar", "kernelbarmkernel", "aM",
@@ -130,12 +119,10 @@ for (iset in seq(0, (opt$nset-1))) {
 
                         lines(x=data$omega[data$ik == inorm],
                                 y=data$kernel[data$ik == inorm],
-                                dy=data$kernel[data$ik == inorm],
                                 col=1)
 
                         lines(x=data$omega[data$ik == inorm],
                                 y=data$kernelbar[data$ik == inorm],
-                                dy=data$kernelbar[data$ik == inorm],
                                 col=2)
                                 
                         legend(x="bottomleft", col=seq(1, 2),
