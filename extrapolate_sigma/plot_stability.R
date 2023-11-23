@@ -22,14 +22,16 @@ make_option(c("--neps"), type="integer", default=10,
 make_option(c("--nset"), type="integer", default=1,
             help = "number of sets that are considered"),
 make_option(c("--nnorm"), type="integer", default=2,
-            help = "number of norms that are considered")
+            help = "number of norms that are considered"),
+make_option(c("--comment"), type="character", default="",
+            help = "comment to put on end of files")
 )
 parser <- OptionParser(usage = "%prog [options]", option_list = option_list)
 args <- parse_args(parser, positional_arguments = 0)
 opt <- args$options
 }
 
-pdf(sprintf("%s/stability.pdf", opt$plotpath), title="")
+pdf(sprintf("%s/stability%s.pdf", opt$plotpath, opt$comment), title="")
 
 
 for (iset in seq(0, (opt$nset-1))) {
@@ -86,7 +88,7 @@ for (iset in seq(0, (opt$nset-1))) {
     }
 }
 
-pdf(sprintf("%s/reconstruct_kernel.pdf", opt$plotpath), title="")
+pdf(sprintf("%s/reconstruct_kernel%s.pdf", opt$plotpath, opt$comment), title="")
 
 plot(x=seq(0, 10), y=seq(0, 10), col=seq(0, 10), pch=seq(0, 10))
 
