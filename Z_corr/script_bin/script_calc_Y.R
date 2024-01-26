@@ -1,146 +1,98 @@
+#~ Caveats: we assume that n_1=(1, 0, 0), n_s=(0, 1, 0), theta=(0, 0, theta)
+#~ We assume all folders have the same naming structure and length
+#~ We assume what is always (0, 0, 1)
+#~ At the moment, all folders are taken into account when reading in the data, but this could be changed, maybe with a separate inputlist or more command line parameters?
+
 
 library("hadron")
 source("morefunctions.R")
 
+args <- commandArgs(trailingOnly = TRUE)
+inputfile <- as.character(args[1])
+opt <- read.table(inputfile, sep=",", header=TRUE)
+opt <- opt[1, ]
+print(opt)
+
+
+
 # TODO: include optparse for command line parameters or make inputfile
-tsink <- 48
-tj <- 36
-bootl <- 1
-bootsamples <- 1000
+tsink <- opt$tsink
+tj <- opt$tj
+bootl <- opt$bs
+bootsamples <- opt$nboot
 maskfilelist <- 1:198
-bootstraptype <- "bootstrap"
+bootstraptype <- opt$statistics
 
 if (bootstraptype != "jackknife" && bootstraptype != "bootstrap") stop("bootstraptype is invalid")
 
-t1mH <- 14
-t2mH <- 47
+t1mH <- opt$t1heavy
+t2mH <- opt$t2heavy
 
-t1mL <- 14
-t2mL <- 47
+t1mL <- opt$t1light
+t2mL <- opt$t2light
 
-t1mL0 <- 14
-t2mL0 <- 47
+t1mL0 <- opt$t1light0
+t2mL0 <- opt$t2light
 
-theta <- 0
+theta <- opt$momentumindex
 
 
 
 
 # change ZA, ZV with regards to previuos script
-ZV <- 0.74294
+ZV <- opt$ZV
 #~ dZV <- 0.00024
 dZV <- 0
-ZA <- 0.706379
+ZA <- opt$ZA
 #~ dZA <- 0.000024
 dZA <- 0
-L <- 64
-NT <- 128
-afm <- 0.07957
-mpigev <- 0.1402
+L <- opt$L
+NT <- opt$T
+afm <- opt$afm
+mpigev <- opt$mpigev
 
-thetain <- c(0, 0, 1)
+thetain <- c(0, 0, opt$theta)
 w <- sqrt(sum(thetain^2)) * pi / L
 what <- 1
 
+seed <- opt$seed
+outpath <- opt$outpath
+plot <- opt$plot
 
-
-#~ Read in data for vector currents.
-
-
-#~ define function for arbitrary $\mu, \nu$.
-#~ <!-- In Antonios note, he only mentions AA and VV, so take out mixed parts. -->
-#~ AV and VA are only needed for $C_{12}$ and $C_{21}$, not for the rest, so build a switch for them.
-#~ The correlators are weighted with renormalization factors.
-#~ reformulate Antonios note:
-
-#~ $Y^2(t)=\frac{M_{D_s}}{\exp(M_{D_s}\cdot dt)}\frac{\hat{w}_0^2}{C_2(t)}\left(Z_V^2C_4^{V_0V_0}(t) + Z_A^2C_4^{A_0A_0}(t)\right)$
-##four point function is not symmetric, do not symmetrise, also take care of division
-# sym: for drawing bootstrapsamples, argument for tsboot. See documentation of hadron::bootstrap.cf
-## seed is not fixed 
-## to save time: allow to calculate only same indices or only mixed indices
-getcmunu <- function(filellist, Time=128, mu=0, nu=0, boot.R=100, 
-                    print=FALSE, boot.l=10, ZA, ZV, dZA, dZV, 
-                    theta = 0, factor = 1, 
-                    sim="fixed", bootstraptype="bootstrap", 
-                    same = T, mixed = T){
-aa <- NA
-vv <- NA
-av <- NA
-va <- NA
-if (same) {
-aa <- readnissatextcf(filelist, smear_combs_to_read=c(paste("mes_contr_H_C_Dth", theta, "_A_C_P_H_H_S_H", sep="")), Time=Time, 
-        corrtype="general", symmetrise=FALSE, sym.vec=c(1), 
-        combs_to_read=data.frame(op1_idx="C_H", op2_idx=paste("Dth", theta, "_A", nu, "_C_P_H_H_S_H", sep=""), spin_comb=paste("A", mu, "P5", sep="")))
-if (bootstraptype == "bootstrap") aa <- bootstrap.cf(aa, boot.R=boot.R, boot.l=boot.l, sim=sim, seed=123)
-if (bootstraptype == "jackknife") aa <- jackknife.cf(aa, boot.l=boot.l)
-
-vv <- readnissatextcf(filelist, smear_combs_to_read=c(paste("mes_contr_H_C_Dth", theta, "_V_C_P_H_H_S_H", sep="")), Time=Time, 
-        corrtype="general", symmetrise=FALSE, sym.vec=c(1), 
-        combs_to_read=data.frame(op1_idx="C_H", op2_idx=paste("Dth", theta, "_V", nu, "_C_P_H_H_S_H", sep=""), spin_comb=paste("V", mu, "P5", sep="")))
-if (bootstraptype == "bootstrap") vv <- bootstrap.cf(vv, boot.R=boot.R, boot.l=boot.l, sim=sim, seed=123)
-if (bootstraptype == "jackknife") vv <- jackknife.cf(vv, boot.l=boot.l)
-}
-
-# print(dim(bootstrapZA))
-# print(dim(aa$cf.tsboot$t))
-
-  
-if (mixed) {
-av <- readnissatextcf(filelist, smear_combs_to_read=c(paste("mes_contr_H_C_Dth", theta, "_V_C_P_H_H_S_H", sep="")), Time=Time, 
-        corrtype="general", symmetrise=FALSE, sym.vec=c(1), 
-        combs_to_read=data.frame(op1_idx="C_H", op2_idx=paste("Dth", theta, "_V", nu, "_C_P_H_H_S_H", sep=""), spin_comb=paste("A", mu, "P5", sep="")))
-if (bootstraptype == "bootstrap") av <- bootstrap.cf(av, boot.R=boot.R, boot.l=boot.l, sim=sim, seed=123)
-if (bootstraptype == "jackknife") av <- jackknife.cf(av, boot.l=boot.l)
-
-va <- readnissatextcf(filelist, smear_combs_to_read=c(paste("mes_contr_H_C_Dth", theta, "_A_C_P_H_H_S_H", sep="")), Time=Time, 
-        corrtype="general", symmetrise=FALSE, sym.vec=c(1), 
-        combs_to_read=data.frame(op1_idx="C_H", op2_idx=paste("Dth", theta, "_A", nu, "_C_P_H_H_S_H", sep=""), spin_comb=paste("V", mu, "P5", sep="")))
-if (bootstraptype == "bootstrap") va <- bootstrap.cf(va, boot.R=boot.R, boot.l=boot.l, sim=sim, seed=123)
-if (bootstraptype == "jackknife") va <- jackknife.cf(va, boot.l=boot.l)
-}
-
-
-bootstrapZA <- parametric.bootstrap(boot.R, c(ZA), c(dZA), seed=123)
-bootstrapZV <- parametric.bootstrap(boot.R, c(ZV), c(dZV), seed=123)
-
-
-if (same) {
-aa <- multiplycfbootstrap(cf = aa, central = ZA^2 * factor, bootstraps = bootstrapZA^2 * factor)
-vv <- multiplycfbootstrap(cf = vv, central = ZV^2 * factor, bootstraps = bootstrapZV^2 * factor)
-}
-
-if (mixed) {
-av <- multiplycfbootstrap(cf = av, central = ZA*ZV * factor, bootstraps = bootstrapZA*bootstrapZV * factor)
-va <- multiplycfbootstrap(cf = va, central = ZV*ZA * factor, bootstraps = bootstrapZV*bootstrapZA * factor)
-}
-
-return(list(aa=aa, av=av, va=va, vv=vv))
-}
+if (plot) pdf(paste0(outpath, "plotforYcorr.pdf"), title="")
 
 
 
 ## TODO: find a way to automatically exclude directories which do not have all files
 
 #~ Make a filelist
-filelist <- getorderedfilelist(path="/home/gross/Documents/heavymesons/data/th0/out_th0/", 
-        basename="b", ending="/mes_contr_H_C_S_H")
-filelist2 <- getorderedfilelist(path="/home/gross/Documents/heavymesons/data/th0/out_th0/", 
-        basename="a", ending="/mes_contr_H_C_S_H")
-filelist <- c(filelist, filelist2)
+#~ filelist <- getorderedfilelist(path="/home/gross/Documents/heavymesons/data/th0/out_th0/", 
+#~         basename="b", ending="/mes_contr_H_C_S_H")
+#~ filelist2 <- getorderedfilelist(path="/home/gross/Documents/heavymesons/data/th0/out_th0/", 
+#~         basename="a", ending="/mes_contr_H_C_S_H")
+#~ filelist <- c(filelist, filelist2)
+
+if(opt$nfilenames < 1) stop ("nfilenames has to be at least 1!")
+filelist <- c()
+for (iname in seq(1, opt$nfilenames)) {
+    basename <- paste0("basename", iname)
+    newfilelist <- getorderedfilelist(path=opt$filepath, 
+                            basename=opt[basename], ending="/mes_contr_H_C_S_H")
+    filelist <- c(filelist, newfilelist)
+}
 
 filelist <- substr(filelist, 1, nchar(filelist[1])-17)
-#~ filelist <- filelist[-1]
 filelist <- filelist[maskfilelist]
 
 
 
 #~ symmetrisation makes 65 timeslices out of 128: measure from 0..127, 0 stays the same, 1+127, 2+126, ..., 64 stays the same -> now from 0..64, 65 times. Do not symmetrise four-point function, symmetrisation does not make sense with more than one inserted time. But do symmetrise two-point-function to get better signal for mass, matrix element, unsymmetrise later to get values for all timeslices. Calculate smeared-smeared contribution to determine masses.
 
-mesonheavy <- readnissatextcf(filelist, smear_combs_to_read=c("/mes_contr_H_C_H_H_S_H"), Time=128,
+mesonheavy <- readnissatextcf(filelist, smear_combs_to_read=c("/mes_contr_H_C_H_H_S_H"), Time=opt$T,
                 corrtype="general", combs_to_read=data.frame(op1_idx="C_H", op2_idx="H_H_S_H", spin_comb="P5P5"),
                 symmetrise=TRUE, sym.vec=c(1))
                 
-if (bootstraptype == "bootstrap") mesonheavy <- bootstrap.cf(mesonheavy, boot.R=bootsamples, boot.l=bootl, sim="fixed", seed=123)
+if (bootstraptype == "bootstrap") mesonheavy <- bootstrap.cf(mesonheavy, boot.R=bootsamples, boot.l=bootl, sim="fixed", seed=seed)
 if (bootstraptype == "jackknife") mesonheavy <- jackknife.cf(mesonheavy, boot.l=bootl)
 mesonheavyalltimeslices <- unsymmetrise.cf(mesonheavy)
 
@@ -148,19 +100,18 @@ mesonheavyalltimeslices <- unsymmetrise.cf(mesonheavy)
 mesonheavyeffmass <- bootstrap.effectivemass(mesonheavy, type="solve")
 mesonheavyeffmass <- fit.effectivemass(mesonheavyeffmass, t1=t1mH, t2=t2mH, useCov=FALSE)
 summary(mesonheavyeffmass)
+if (plot) plot(mesonheavyeffmass, xlab="t/a", ylab="m_eff heavy", main="heavy meson")
 #~ stop("")
 
 w <- w/mesonheavyeffmass$effmassfit$t0[1]
 w2 <- w^2
-w2
 bootsamples <- mesonheavy$boot.R
-print(mesonheavy$resampling_method)
 
  # Contraction of Dth0_H ^ \dag and H_H_S_H
-mesonlight <- readnissatextcf(filelist, smear_combs_to_read=c(paste("mes_contr_H_Dth", theta, "_H_H_S_H", sep="")), Time=128,
+mesonlight <- readnissatextcf(filelist, smear_combs_to_read=c(paste("mes_contr_H_Dth", theta, "_H_H_S_H", sep="")), Time=opt$T,
                 corrtype="general", combs_to_read=data.frame(op1_idx=paste0("Dth", theta, "_H"), op2_idx="H_H_S_H", spin_comb="P5P5"),
                 symmetrise=TRUE, sym.vec=c(1))
-if (bootstraptype == "bootstrap") mesonlight <- bootstrap.cf(mesonlight, boot.R=bootsamples, boot.l=bootl, sim="fixed", seed=123)
+if (bootstraptype == "bootstrap") mesonlight <- bootstrap.cf(mesonlight, boot.R=bootsamples, boot.l=bootl, sim="fixed", seed=seed)
 if (bootstraptype == "jackknife") mesonlight <- jackknife.cf(mesonlight, boot.l=bootl)
 mesonlightalltimeslices <- unsymmetrise.cf(mesonlight)
 
@@ -168,12 +119,13 @@ mesonlightalltimeslices <- unsymmetrise.cf(mesonlight)
 mesonlighteffmass <- bootstrap.effectivemass(mesonlight, type="solve")
 mesonlighteffmass <- fit.effectivemass(mesonlighteffmass, t1=t1mL, t2=t2mL, useCov=FALSE)
 summary(mesonlighteffmass)
+if (plot) plot(mesonlighteffmass, xlab="t/a", ylab="m_eff light", main="light meson")
 
  # Contraction of Dth0_H ^ \dag and H_H_S_H
-mesonlight0 <- readnissatextcf(filelist, smear_combs_to_read=c(paste("mes_contr_H_Dth", theta, "_H_H_S_H", sep="")), Time=128,
+mesonlight0 <- readnissatextcf(filelist, smear_combs_to_read=c(paste("mes_contr_H_Dth", theta, "_H_H_S_H", sep="")), Time=opt$T,
                 corrtype="general", combs_to_read=data.frame(op1_idx=paste0("Dth", theta, "_H"), op2_idx="H_H_S_H", spin_comb="P5P5"),
                 symmetrise=TRUE, sym.vec=c(1))
-if (bootstraptype == "bootstrap") mesonlight0 <- bootstrap.cf(mesonlight0, boot.R=bootsamples, boot.l=bootl, sim="fixed", seed=123)
+if (bootstraptype == "bootstrap") mesonlight0 <- bootstrap.cf(mesonlight0, boot.R=bootsamples, boot.l=bootl, sim="fixed", seed=seed)
 if (bootstraptype == "jackknife") mesonlight0 <- jackknife.cf(mesonlight0, boot.l=bootl)
 mesonlight0alltimeslices <- unsymmetrise.cf(mesonlight0)
 
@@ -181,6 +133,7 @@ mesonlight0alltimeslices <- unsymmetrise.cf(mesonlight0)
 mesonlight0effmass <- bootstrap.effectivemass(mesonlight0, type="solve")
 mesonlight0effmass <- fit.effectivemass(mesonlight0effmass, t1=t1mL0, t2=t2mL0, useCov=FALSE)
 summary(mesonlight0effmass)
+if (plot) plot(mesonlight0effmass, xlab="t/a", ylab="m_eff light0", main="light 0 meson")
 
 
 
@@ -189,14 +142,14 @@ summary(mesonlight0effmass)
 #~ From symmetry reasons, we get that we do not need to calculate all components, take them out with the mixed/same arguments
 #~ We also do not need all matrix elements of cmunu
 
-c_00 <- getcmunu(filellist = filelist, mu=0, nu=0, boot.R=bootsamples, ZA=ZA, ZV=ZV, dZA=dZA, dZV=dZV, factor=1, boot.l=bootl, same=T, mixed=F, bootstraptype=bootstraptype)
-c_33 <- getcmunu(filellist = filelist, mu=3, nu=3, boot.R=bootsamples, ZA=ZA, ZV=ZV, dZA=dZA, dZV=dZV, factor=1, boot.l=bootl, same=T, mixed=F, bootstraptype=bootstraptype)
-c_03 <- getcmunu(filellist = filelist, mu=0, nu=3, boot.R=bootsamples, ZA=ZA, ZV=ZV, dZA=dZA, dZV=dZV, factor=1, boot.l=bootl, same=T, mixed=F, bootstraptype=bootstraptype)
-c_30 <- getcmunu(filellist = filelist, mu=3, nu=0, boot.R=bootsamples, ZA=ZA, ZV=ZV, dZA=dZA, dZV=dZV, factor=1, boot.l=bootl, same=T, mixed=F, bootstraptype=bootstraptype)
-c_11 <- getcmunu(filellist = filelist, mu=1, nu=1, boot.R=bootsamples, ZA=ZA, ZV=ZV, dZA=dZA, dZV=dZV, factor=1, boot.l=bootl, same=T, mixed=F, bootstraptype=bootstraptype)
-c_12 <- getcmunu(filellist = filelist, mu=1, nu=2, boot.R=bootsamples, ZA=ZA, ZV=ZV, dZA=dZA, dZV=dZV, factor=1, boot.l=bootl, same=F, mixed=T, bootstraptype=bootstraptype)
-c_21 <- getcmunu(filellist = filelist, mu=2, nu=1, boot.R=bootsamples, ZA=ZA, ZV=ZV, dZA=dZA, dZV=dZV, factor=1, boot.l=bootl, same=F, mixed=T, bootstraptype=bootstraptype)
-c_22 <- getcmunu(filellist = filelist, mu=2, nu=2, boot.R=bootsamples, ZA=ZA, ZV=ZV, dZA=dZA, dZV=dZV, factor=1, boot.l=bootl, same=T, mixed=F, bootstraptype=bootstraptype)
+c_00 <- getcmunu(filellist = filelist, Time=opt$T, mu=0, nu=0, boot.R=bootsamples, ZA=ZA, ZV=ZV, dZA=dZA, dZV=dZV, factor=1, boot.l=bootl, same=T, mixed=F, bootstraptype=bootstraptype, seed=seed)
+c_33 <- getcmunu(filellist = filelist, Time=opt$T, mu=3, nu=3, boot.R=bootsamples, ZA=ZA, ZV=ZV, dZA=dZA, dZV=dZV, factor=1, boot.l=bootl, same=T, mixed=F, bootstraptype=bootstraptype, seed=seed)
+c_03 <- getcmunu(filellist = filelist, Time=opt$T, mu=0, nu=3, boot.R=bootsamples, ZA=ZA, ZV=ZV, dZA=dZA, dZV=dZV, factor=1, boot.l=bootl, same=T, mixed=F, bootstraptype=bootstraptype, seed=seed)
+c_30 <- getcmunu(filellist = filelist, Time=opt$T, mu=3, nu=0, boot.R=bootsamples, ZA=ZA, ZV=ZV, dZA=dZA, dZV=dZV, factor=1, boot.l=bootl, same=T, mixed=F, bootstraptype=bootstraptype, seed=seed)
+c_11 <- getcmunu(filellist = filelist, Time=opt$T, mu=1, nu=1, boot.R=bootsamples, ZA=ZA, ZV=ZV, dZA=dZA, dZV=dZV, factor=1, boot.l=bootl, same=T, mixed=F, bootstraptype=bootstraptype, seed=seed)
+c_12 <- getcmunu(filellist = filelist, Time=opt$T, mu=1, nu=2, boot.R=bootsamples, ZA=ZA, ZV=ZV, dZA=dZA, dZV=dZV, factor=1, boot.l=bootl, same=F, mixed=T, bootstraptype=bootstraptype, seed=seed)
+c_21 <- getcmunu(filellist = filelist, Time=opt$T, mu=2, nu=1, boot.R=bootsamples, ZA=ZA, ZV=ZV, dZA=dZA, dZV=dZV, factor=1, boot.l=bootl, same=F, mixed=T, bootstraptype=bootstraptype, seed=seed)
+c_22 <- getcmunu(filellist = filelist, Time=opt$T, mu=2, nu=2, boot.R=bootsamples, ZA=ZA, ZV=ZV, dZA=dZA, dZV=dZV, factor=1, boot.l=bootl, same=T, mixed=F, bootstraptype=bootstraptype, seed=seed)
 
 
 
@@ -275,7 +228,7 @@ for (name in c("full", "vpar", "apar", "vperp", "aperp")) {
 #~ }
 
 ## store
-to.write <- file("outputYbin/Y.bin", "wb")
+to.write <- file(paste0(outpath, "Y.bin"), "wb")
 endian <- .Platform$endian
 
 writeBin(object=as.integer(1),     con=to.write, endian=endian)
@@ -293,26 +246,29 @@ store_bin_cf_effmass(to.write, mesonheavyeffmass,  endian)
 store_bin_cf_effmass(to.write, mesonlighteffmass,  endian)
 store_bin_cf_effmass(to.write, mesonlight0effmass, endian)
 
-pdf("outputYbin/testY.pdf", title="")
 
-ylist <- list(y_1, y_2, y_3, y_4, y_5)
+ylist <- list(y_1=y_1, y_2=y_2, y_3=y_3, y_4=y_4, y_5=y_5, heavy=mesonheavyeffmass, light=mesonlighteffmass, light0=mesonlight0effmass)
 # some Correlators are multiplied by i, so we have to store the imaginary part
 imre <- c("reel", "reel", "reel", "imag", "imag")
 
 for (comb in c("full", "vpar", "apar", "vperp", "aperp")) {
     for (index in seq(1, 5)) {
     y <- ylist[[index]]
-    try(plot(y[[comb]], log="y", main=paste("y", index, "comb", comb), xlab="t", ylab="Y", xlim = c(0, 64)))
-    try(plotwitherror(x=seq(0, 127), y=y[[comb]]$cf0, rep=TRUE, col=2))
+    if (plot) try(plot(y[[comb]], log="y", main=paste("y", index, "comb", comb), xlab="t", ylab="Y", xlim = c(0, opt$T/2)))
         for (time in seq(tj+1, 1)) {
             if (length(y[[comb]]) > 1) {
-                if (time==tsink) print(paste("y", index, "comb", comb))
                 store_bin_cf(to.write, y[[comb]], endian, time=time, imre=imre[index])
+                if (imre[index] =="reel") try(plot(y[[comb]]$cf.tsboot,  index=time))
+                if (imre[index] =="imag") try(plot(y[[comb]]$icf.tsboot, index=time))
             }
             else store_bin_zero(to.write, endian, resampling_method=bootstraptype, boot.R=bootsamples)
         }
     }
 }
+
+filenamesave <- sprintf("%s/summary.RData", opt$outpath)
+print(filenamesave)
+saveRDS(object=ylist, file=filenamesave)
 
 #~ int indexY(Y_t *Y,int t,int iy,int icomb)
 #~ {

@@ -14,9 +14,9 @@ source("morefunctions.R")
 
 Make a filelist
 ```{r filelist}
-filelist <- getorderedfilelist(path="/home/gross/Documents/heavymesons/out_th0/", 
+filelist <- getorderedfilelist(path="/home/gross/Documents/heavymesons/data/out_th0/", 
         basename="b", ending="/mes_contr_H_C_S_H")
-filelist2 <- getorderedfilelist(path="/home/gross/Documents/heavymesons/out_th0/", 
+filelist2 <- getorderedfilelist(path="/home/gross/Documents/heavymesons/data/out_th0/", 
         basename="a", ending="/mes_contr_H_C_S_H")
 filelist <- c(filelist, filelist2)
 
@@ -161,6 +161,7 @@ summary(scalarsmearedeffmass)
 # plot(scalarlocaleffmass, xlab="t/a", ylab="m_eff(t)", main="smeared-smeared two point function")
 # # print(scalarsmearedeffmass$effMass)
 # summary(scalarlocaleffmass)
+
 
 ```
 <!-- seed: 5647382: -->
@@ -446,3 +447,32 @@ knitr::kable(summary)
 
 Antonio wrote that the additional factor $\frac{1}{2}$ in $Y^1$ comes from the fact that the contribution is equally split between two unit vectors.  This is not the case for the other $Y$.
 The factor $\frac{1}{2}$ in $Y^4$ and $Y^5$ comes from the paper.
+
+```{r, echo=FALSE}
+
+distance <- 2
+fontsize <- 1.2
+packages <- c("\\usepackage{tikz}", "\\usepackage[active,tightpage]{preview}", "\\PreviewEnvironment{pgfpicture}",
+        "\\setlength\\PreviewBorder{0pt}", "\\usepackage{amsmath}")
+tikzfile <- tikz.init(sprintf("effmasssmearedsmearedbootstrap"), width=80/25.4, height=80/25.4, packages=packages)
+plot(scalarsmearedeffmass, xlab="", ylab="", ylim=c(0.795, 0.815), cex=0.8, cex.lab=fontsize, col.fitline="red")
+mtext("$a m_\\text{eff}(t)$", side=2, line=distance, cex=fontsize) #ylab
+mtext("$t/a$", side=1, line=distance, cex=fontsize) #ylab
+tikz.finalize(tikzfile)
+system("mv effmasssmearedsmearedbootstrap.pdf /home/gross/sciebo/presentations/")
+
+tikzfile <- tikz.init(sprintf("zcorrelators"), width=120/25.4, height=120/25.4, packages=packages)
+plotwitherror(x=seq(0, 48), y=data_christiane$zzero[1:49], dy=data_christiane$dzzero[1:49], xlab="", ylab="", log="y", cex=fontsize, cex.lab=fontsize, xlim=c(0, 31))
+plotwitherror(x=seq(0, 48), y=data_christiane$zone[1:49], dy=data_christiane$dzone[1:49], rep=TRUE, cex=fontsize, cex.lab=fontsize, pch=2, col=2)
+plotwitherror(x=seq(0, 48), y=data_christiane$ztwo[1:49], dy=data_christiane$dztwo[1:49], rep=TRUE, cex=fontsize, cex.lab=fontsize, pch=5, col=4)
+legend(x="topright", legend=c("$Z^{(0)}$", "$Z^{(1)}$", "$Z^{(2)}$"), col=c(1, 2, 4), pch=c(1, 2, 5), cex=fontsize)
+mtext("$Z^{(i)}(t)$", side=2, line=distance, cex=fontsize) #ylab
+mtext("$t/a$", side=1, line=distance, cex=fontsize) #ylab
+tikz.finalize(tikzfile)
+
+```
+```{r}
+plot(x=seq(1, 10), y=seq(1, 10), pch=seq(1, 10))
+```
+
+

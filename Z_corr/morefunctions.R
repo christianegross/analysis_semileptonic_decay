@@ -74,7 +74,7 @@ multiplycfbootstrap <- function(cf, central, bootstraps){
 }
   
 multiplycfscalar <- function(cf, scalar){
-    print(scalar)
+#~     print(scalar)
     cfnew <- cf
     cfnew$cf <- cf$cf * scalar
     if( has_icf(cf)){
@@ -165,8 +165,8 @@ dividebyreal.cf <- function(cf1, cf2) {
 
 ## for the effective masses, we only store the result, not the masses for the timeslices
 store_bin_cf_effmass <- function(to.write, cfeffmass, endian){
-    if (cfeffmass$cf$resampling_method == "bootstrap") writeBin(object=as.integer(0), con=to.write, endian=endian)
-    if (cfeffmass$cf$resampling_method == "jackknife") writeBin(object=as.integer(1), con=to.write, endian=endian)
+    if (cfeffmass$cf$resampling_method == "bootstrap") writeBin(object=as.integer(1), con=to.write, endian=endian)
+    if (cfeffmass$cf$resampling_method == "jackknife") writeBin(object=as.integer(0), con=to.write, endian=endian)
     writeBin(object=as.integer(cfeffmass$boot.R), con=to.write, endian=endian)
     writeBin(object=as.double(cfeffmass$effmassfit$t[, 1]), con=to.write, endian=endian)
     writeBin(object=as.double(mean(cfeffmass$effmassfit$t[, 1])), con=to.write, endian=endian) # mean=mean(bootstrap samples)
@@ -178,22 +178,22 @@ store_bin_cf_effmass <- function(to.write, cfeffmass, endian){
 ## for the more general cf-objects, in this case the y-correlators, we store them timeslice by timeslice
 ## we can select whether to store the imaginary or real part of the correlator, which can be useful if we want to calculate something that has benn multiplid by i
 store_bin_cf <- function(to.write, cf, endian, time, imre="reel"){
-    if (cf$resampling_method == "bootstrap") writeBin(object=as.integer(0), con=to.write, endian=endian)
-    if (cf$resampling_method == "jackknife") writeBin(object=as.integer(1), con=to.write, endian=endian)
+    if (cf$resampling_method == "bootstrap") writeBin(object=as.integer(1), con=to.write, endian=endian)
+    if (cf$resampling_method == "jackknife") writeBin(object=as.integer(0), con=to.write, endian=endian)
     writeBin(object=as.integer(cf$boot.R), con=to.write, endian=endian)
     if(imre == "reel") {
         writeBin(object=as.double(cf$cf.tsboot$t[, time]), con=to.write, endian=endian)
 #~         print(length(cf$cf.tsboot$t[, time]))
 #~         print(cf$cf.tsboot$t[, time])
 #~         print(cf$boot.R)
-print(cf$cf0[time])
+#~ print(cf$cf0[time])
         writeBin(object=as.double(mean(cf$cf.tsboot$t[, time])), con=to.write, endian=endian) # mean=mean(bootstrap samples)
         writeBin(object=as.double(cf$cf0[time]), con=to.write, endian=endian) # meanwobias=effmass from mean values of effmass(t)
         writeBin(object=as.double(cf$tsboot.se[time]), con=to.write, endian=endian) # sd=sd from cf object, sd of bootstrap samples
         writeBin(object=as.double(mean(cf$cf.tsboot$t[, time]) - cf$cf0[time]), con=to.write, endian=endian) # bias= mean(boostrapsamples) - effmass from mean values of effmass(t) 
     }   
     if(imre == "imag") {
-print(cf$cf0[time])
+#~ print(cf$cf0[time])
         writeBin(object=as.double(cf$icf.tsboot$t[, time]), con=to.write, endian=endian)
         writeBin(object=as.double(mean(cf$icf.tsboot$t[, time])), con=to.write, endian=endian) # mean=mean(bootstrap samples)
         writeBin(object=as.double(cf$icf0[time]), con=to.write, endian=endian) # meanwobias=effmass from mean values of effmass(t)
@@ -206,8 +206,8 @@ print(cf$cf0[time])
 # we can also store an arbitrary vector
 # vector has to contain mean as a first element and the bootstrapsamples after that
 store_bin_vector <- function(to.write, vector, endian, resampling_method){
-    if (resampling_method == "bootstrap") writeBin(object=as.integer(0), con=to.write, endian=endian)
-    if (resampling_method == "jackknife") writeBin(object=as.integer(1), con=to.write, endian=endian)
+    if (resampling_method == "bootstrap") writeBin(object=as.integer(1), con=to.write, endian=endian)
+    if (resampling_method == "jackknife") writeBin(object=as.integer(0), con=to.write, endian=endian)
     len <- length(vector)
     writeBin(object=as.integer(len-1), con=to.write, endian=endian)
     writeBin(object=as.double(vector[2:len]), con=to.write, endian=endian)
@@ -218,8 +218,8 @@ store_bin_vector <- function(to.write, vector, endian, resampling_method){
 }
 
 store_bin_zero <- function(to.write, endian, resampling_method, boot.R) {
-    if (resampling_method == "bootstrap") writeBin(object=as.integer(0), con=to.write, endian=endian)
-    if (resampling_method == "jackknife") writeBin(object=as.integer(1), con=to.write, endian=endian)
+    if (resampling_method == "bootstrap") writeBin(object=as.integer(1), con=to.write, endian=endian)
+    if (resampling_method == "jackknife") writeBin(object=as.integer(0), con=to.write, endian=endian)
     writeBin(object=as.integer(boot.R), con=to.write, endian=endian)
     writeBin(object=as.double(rep(0, (boot.R+4))), con=to.write, endian=endian) # fill everything with zeros
 }

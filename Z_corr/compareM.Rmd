@@ -1,0 +1,33 @@
+---
+title: "R Notebook"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+library("hadron")
+source("morefunctions.R")
+```
+```{r}
+christiane <- read.table("intermedres_M_christiane.csv", header=TRUE)
+marco <- read.table("data_marco_corr_M.csv", header=TRUE, sep=",")
+xval <- seq(1, 48)
+print(names(marco))
+print(marco$c00)
+```
+
+```{r}
+for( name in c("c00", "c11", "c22", "c33", "c03", "c30", "c12", "c21")){
+  errname <- paste("d", name, sep="")
+  imname <- paste("i", name, sep="")
+  imerrname <- paste("di", name, sep="")
+  plotwitherror(x=xval, y=marco[, name], dy=marco[, errname], main=name, pch=1, col=1)
+  plotwitherror(x=xval, y=christiane[seq(2, 49), name], dy=christiane[seq(2, 49), errname], rep=T, pch=2, col=2)
+  legend(x="topleft", legend=c("Marco", "Christiane"), col=c(1, 2), pch=c(1, 2))
+  plotwitherror(x=xval, y=marco[, imname], dy=marco[, imerrname], main=imname, pch=1, col=1)
+  plotwitherror(x=xval, y=christiane[seq(2, 49), imname], dy=christiane[seq(2, 49), imerrname], rep=T, pch=2, col=2)
+  legend(x="topleft", legend=c("Marco", "Christiane"), col=c(1, 2), pch=c(1, 2))
+}
+```
+

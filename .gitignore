@@ -7,3 +7,14 @@
 *.png
 *.RData
 *lock*
+*.RDS
+*.bin
+
+
+extrapolate_sigma/old_results/*
+extrapolate_sigma/old_scripts/*
+Z_corr/plots/*
+error_covmatrix/*
+
+
+commandsR.txt

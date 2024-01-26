@@ -1,50 +1,77 @@
-#' Do a complex division cf1 / cf2, taking real and imaginary part into account
-#' (a+bi) / (c+di) = ((a+bi)*(c-di)) / (c^2 + d^2) = ((ac-bd) + (bc-ad)i) / (c^2 + d^2)
-complexdivisionvlocal <- function(cf1, cf2){
-  stopifnot(inherits(cf1, 'cf_meta'))
-  stopifnot(inherits(cf2, 'cf_meta'))
-  cf <- cf1
-  if(inherits(cf1, 'cf_orig') && inherits(cf2, 'cf_orig')) {
-    stopifnot(all(dim(cf1$cf) == dim(cf2$cf)))
-    stopifnot(cf1$Time == cf2$Time)
-    
-    
-    if( has_icf(cf1) | has_icf(cf2) ){
-      stopifnot(has_icf(cf1) & has_icf(cf2))
-      divisor <- cf2$cf^2 + cf2$icf^2
-      # print(head(divisor[, 1:5]))
-      # print(head(cf1$cf[, 1:5] * cf2$cf[, 1:5]))
-      # print(head(cf1$icf[, 1:5] * cf2$icf[, 1:5]))
-      cf$cf <- (cf1$cf * cf2$cf - cf1$icf * cf2$icf) / divisor
-      cf$icf <- (cf1$icf * cf2$cf - cf1$cf * cf2$icf) / divisor
-      ## the following is a bit dangerous, however, for
-      ## principal correlators this is the only way to
-      ## build a ratio
-      if(inherits(cf1, 'cf_boot') && inherits(cf2, 'cf_boot') &&
-         all(dim(cf1$cf.tsboot$t) == dim(cf2$cf.tsboot$t)) &&
-         cf1$seed == cf2$seed && cf1$boot.l == cf2$boot.l) {
-        
-        divisor <- cf2$cf.tsboot$t^2 + cf2$icf.tsboot$t^2
-        divisor0 <- cf2$cf.tsboot$t0^2 + cf2$icf.tsboot$t0^2
-        
-        cf$cf.tsboot$t  <- (cf1$cf.tsboot$t * cf2$cf.tsboot$t - cf1$icf.tsboot$t * cf2$icf.tsboot$t) / divisor
-        cf$cf.tsboot$t0  <- (cf1$cf.tsboot$t0 * cf2$cf.tsboot$t0 - cf1$icf.tsboot$t0 * cf2$icf.tsboot$t0) / divisor0
-        
-        cf$icf.tsboot$t  <- (cf1$cf.tsboot$t * cf2$icf.tsboot$t - cf1$cf.tsboot$t * cf2$icf.tsboot$t) / divisor
-        cf$icf.tsboot$t0  <- (cf1$cf.tsboot$t0 * cf2$icf.tsboot$t0 - cf1$cf.tsboot$t0 * cf2$icf.tsboot$t0) / divisor0
-        
-        cf$tsboot.se <- apply(cf$cf.tsboot$t, MARGIN = 2L, FUN = cf$error_fn)
-        cf$cf0 <- cf$cf.tsboot$t0
-        cf$itsboot.se <- apply(cf$icf.tsboot$t, MARGIN = 2L, FUN = cf$error_fn)
-        cf$icf0 <- cf$icf.tsboot$t0
-      }
-    } else {
-      cf <- cf1 / cf2
-    }
-  }
-  else cf <- invalidate.samples.cf(cf)
-  return (cf)
+
+#~ Read in data for vector currents.
+
+
+#~ define function for arbitrary $\mu, \nu$.
+#~ <!-- In Antonios note, he only mentions AA and VV, so take out mixed parts. -->
+#~ AV and VA are only needed for $C_{12}$ and $C_{21}$, not for the rest, so build a switch for them.
+#~ The correlators are weighted with renormalization factors.
+#~ reformulate Antonios note:
+
+#~ $Y^2(t)=\frac{M_{D_s}}{\exp(M_{D_s}\cdot dt)}\frac{\hat{w}_0^2}{C_2(t)}\left(Z_V^2C_4^{V_0V_0}(t) + Z_A^2C_4^{A_0A_0}(t)\right)$
+##four point function is not symmetric, do not symmetrise, also take care of division
+# sym: for drawing bootstrapsamples, argument for tsboot. See documentation of hadron::bootstrap.cf
+## seed is not fixed 
+## to save time: allow to calculate only same indices or only mixed indices
+getcmunu <- function(filellist, Time=128, mu=0, nu=0, boot.R=100, 
+                    print=FALSE, boot.l=10, ZA, ZV, dZA, dZV, 
+                    theta = 0, factor = 1, 
+                    sim="fixed", bootstraptype="bootstrap", 
+                    same = T, mixed = T, seed=123456){
+aa <- NA
+vv <- NA
+av <- NA
+va <- NA
+if (same) {
+aa <- readnissatextcf(filelist, smear_combs_to_read=c(paste("mes_contr_H_C_Dth", theta, "_A_C_P_H_H_S_H", sep="")), Time=Time, 
+        corrtype="general", symmetrise=FALSE, sym.vec=c(1), 
+        combs_to_read=data.frame(op1_idx="C_H", op2_idx=paste("Dth", theta, "_A", nu, "_C_P_H_H_S_H", sep=""), spin_comb=paste("A", mu, "P5", sep="")))
+if (bootstraptype == "bootstrap") aa <- bootstrap.cf(aa, boot.R=boot.R, boot.l=boot.l, sim=sim, seed=seed)
+if (bootstraptype == "jackknife") aa <- jackknife.cf(aa, boot.l=boot.l)
+
+vv <- readnissatextcf(filelist, smear_combs_to_read=c(paste("mes_contr_H_C_Dth", theta, "_V_C_P_H_H_S_H", sep="")), Time=Time, 
+        corrtype="general", symmetrise=FALSE, sym.vec=c(1), 
+        combs_to_read=data.frame(op1_idx="C_H", op2_idx=paste("Dth", theta, "_V", nu, "_C_P_H_H_S_H", sep=""), spin_comb=paste("V", mu, "P5", sep="")))
+if (bootstraptype == "bootstrap") vv <- bootstrap.cf(vv, boot.R=boot.R, boot.l=boot.l, sim=sim, seed=seed)
+if (bootstraptype == "jackknife") vv <- jackknife.cf(vv, boot.l=boot.l)
 }
+
+# print(dim(bootstrapZA))
+# print(dim(aa$cf.tsboot$t))
+
+  
+if (mixed) {
+av <- readnissatextcf(filelist, smear_combs_to_read=c(paste("mes_contr_H_C_Dth", theta, "_V_C_P_H_H_S_H", sep="")), Time=Time, 
+        corrtype="general", symmetrise=FALSE, sym.vec=c(1), 
+        combs_to_read=data.frame(op1_idx="C_H", op2_idx=paste("Dth", theta, "_V", nu, "_C_P_H_H_S_H", sep=""), spin_comb=paste("A", mu, "P5", sep="")))
+if (bootstraptype == "bootstrap") av <- bootstrap.cf(av, boot.R=boot.R, boot.l=boot.l, sim=sim, seed=seed)
+if (bootstraptype == "jackknife") av <- jackknife.cf(av, boot.l=boot.l)
+
+va <- readnissatextcf(filelist, smear_combs_to_read=c(paste("mes_contr_H_C_Dth", theta, "_A_C_P_H_H_S_H", sep="")), Time=Time, 
+        corrtype="general", symmetrise=FALSE, sym.vec=c(1), 
+        combs_to_read=data.frame(op1_idx="C_H", op2_idx=paste("Dth", theta, "_A", nu, "_C_P_H_H_S_H", sep=""), spin_comb=paste("V", mu, "P5", sep="")))
+if (bootstraptype == "bootstrap") va <- bootstrap.cf(va, boot.R=boot.R, boot.l=boot.l, sim=sim, seed=seed)
+if (bootstraptype == "jackknife") va <- jackknife.cf(va, boot.l=boot.l)
+}
+
+
+bootstrapZA <- parametric.bootstrap(boot.R, c(ZA), c(dZA), seed=seed)
+bootstrapZV <- parametric.bootstrap(boot.R, c(ZV), c(dZV), seed=seed)
+
+
+if (same) {
+aa <- multiplycfbootstrap(cf = aa, central = ZA^2 * factor, bootstraps = bootstrapZA^2 * factor)
+vv <- multiplycfbootstrap(cf = vv, central = ZV^2 * factor, bootstraps = bootstrapZV^2 * factor)
+}
+
+if (mixed) {
+av <- multiplycfbootstrap(cf = av, central = ZA*ZV * factor, bootstraps = bootstrapZA*bootstrapZV * factor)
+va <- multiplycfbootstrap(cf = va, central = ZV*ZA * factor, bootstraps = bootstrapZV*bootstrapZA * factor)
+}
+
+return(list(aa=aa, av=av, va=va, vv=vv))
+}
+
 
 multiplycfbootstrap <- function(cf, central, bootstraps){
   cfnew <- cf
