@@ -1,0 +1,148 @@
+---
+title: "Finite Volume contribution"
+author: "Christiane"
+date: "2024-02-01"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library("hadron")
+source("/home/gross/Documents/heavymesons/scripts_christiane/extrapolate_sigma_templates/read_in_binary.R")
+erf <- function(x) 2 * pnorm(x * sqrt(2)) - 1
+```
+
+## Finite Volume efects
+
+https://arxiv.org/pdf/2212.08467.pdf, eq. 40 and 41
+
+```{r}
+
+determinesyserrfinitevolume <- function(resultpath1, filenames1, nerr1, L1, resultpath2, filenames2, nerr2, L2, th, 
+        savename, isets=c(0), icomb=c(0)) {
+    ## detect some errors
+    stopifnot(length(filenames1) == length(filenames2))
+    stopifnot(length(filenames1) == length(nerr1))
+    stopifnot(length(filenames1) == length(nerr2))
+    
+    
+    result <- data.frame(w=NA, nerr=NA, iz=NA, icomb=NA, th = NA, epsilon=NA, P=NA, Delta=NA, L1=NA, L2=NA)
+    
+    # resultdat <- list(tsnk=c(), Nt=c(), w=c(), nerr=c(), iz=c(), icomb=c(), th=c(), includesys = c(), DGDq2 = c(), dDGDq2 = c(), dat = array(NA, dim=c(1000, length(tsnk)*2*length(isets)*length(icomb)*4)))
+    parindex <- 1
+for (index in seq(1, length(filenames1))){
+    data1 <- read_in_DGDq2(filename=filenames1[index], write=FALSE, resultpath=resultpath1)
+    data2 <- read_in_DGDq2(filename=filenames2[index], write=FALSE, resultpath=resultpath2)
+for (iset in isets) {
+    mymasks <- list(c(NA))
+    for (iz in c(0, 1, 2, 3)) {
+        for(icomb in c(0)) {
+
+            ## determine which part of data to use, extract needed elements
+            namesel <- paste0("id", ((iz)*5 + icomb)*data1[[2+iset]]$metadata$neps + (0:(data1[[2+iset]]$metadata$neps-1)), 
+                              "ieps", (0:(data1[[2+iset]]$metadata$neps-1)), "icomb", icomb, "iz", iz)
+            
+            
+            title <- paste("iset", iset, "iz", iz, "icomb", icomb, "th", th[index])
+            print(title)
+
+            ## read in and extract information from first ensemble
+
+            DGamma1 <- unlist(sapply(X=data1[[2+iset]][namesel], FUN=getElement, name="DGDq2mean")[1, ], use.names=F)
+            dDGamma1 <- sqrt(unlist(sapply(X=data1[[2+iset]][namesel], FUN=getElement, name="DGDq2sd")[1, ], use.names=F))
+
+            
+            ## read in and extract information from second ensemble
+
+            DGamma2 <- unlist(sapply(X=data2[[2+iset]][namesel], FUN=getElement, name="DGDq2mean")[1, ], use.names=F)
+            dDGamma2 <- sqrt(unlist(sapply(X=data2[[2+iset]][namesel], FUN=getElement, name="DGDq2sd")[1, ], use.names=F))
+            
+            stopifnot(length(DGamma1) == length(DGamma2))
+
+            ## determine P according to eq. 40
+            
+            P <- (DGamma1 - DGamma2)/sqrt(dDGamma1^2+dDGamma2^2)
+            
+            plot(x=data1[[2+iset]]$epsilons, y=P, xlab="epsilon", ylab="P", main=title)
+            
+            ## determine Delta as in eq. 42
+            
+            Delta <- abs(DGamma1 - DGamma2) * erf(abs(P)/sqrt(2))
+            plot(x=data1[[2+iset]]$epsilons, y=Delta, xlab="epsilon", ylab="Delta", main=title)
+
+
+
+            ## save result
+            neps <- data1[[2+iset]]$metadata$neps
+            result <- rbind(result, data.frame(w=rep(data1[[2+iset]]$metadata$w, neps),
+                                        nerr=rep(nerr[index], neps), iz=rep(iz, neps), icomb=rep(icomb, neps),
+                                        th=rep(th[index], neps), epsilon=data1[[2+iset]]$epsilons, P=P, Delta=Delta,
+                                        L1=rep(L1, neps), L2=rep(L2, neps)))
+
+
+        }
+    }
+}
+}
+result <- result[-1, ]
+result <- result[ ! (result$iz==0 & (result$icomb==3 | result$icomb==4)), ]
+print(warnings())
+write.table(result, paste0(savename, ".csv"), row.names=F, col.names=T)
+}
+
+```
+
+
+```{r B64cdextrapolatesigmatozero}
+
+files <- c("th1/new_sigma/outputDGammaDq2/DGammaDq2.bin",
+           "th2/new_sigma/outputDGammaDq2/DGammaDq2.bin",
+           "th3/new_sigma/outputDGammaDq2/DGammaDq2.bin",
+           "th4/new_sigma/outputDGammaDq2/DGammaDq2.bin",
+           "th5/new_sigma/outputDGammaDq2/DGammaDq2.bin",
+           "th6/new_sigma/outputDGammaDq2/DGammaDq2.bin",
+           "th7/new_sigma/outputDGammaDq2/DGammaDq2.bin",
+           "th8/new_sigma/outputDGammaDq2/DGammaDq2.bin",
+           "th9/new_sigma/outputDGammaDq2/DGammaDq2.bin",
+           "th9.5/new_sigma/outputDGammaDq2/DGammaDq2.bin")
+
+th <- c(1, 2, 3, 4, 5, 6, 7, 8, 9, 9.5)
+nerr <- rep(2, 10)
+
+savename <- sprintf("finitevolume_B_cd")
+
+determinesyserrfinitevolume(resultpath1="/home/gross/Documents/heavymesons/data/cd/cB211.07.64/", filenames1=files, L1=64,
+                            resultpath2="/home/gross/Documents/heavymesons/data/cd/cB211.07.96/", filenames2=files, L2=96,
+                            th=th, savename=savename, nerr1=nerr, nerr2=nerr)
+
+
+
+files <- c("th1/outputDGammaDq2/DGammaDq2.bin",
+           "th2/outputDGammaDq2/DGammaDq2.bin",
+           "th3/outputDGammaDq2/DGammaDq2.bin",
+           "th4/outputDGammaDq2/DGammaDq2.bin",
+           "th5/outputDGammaDq2/DGammaDq2.bin",
+           "th6/outputDGammaDq2/DGammaDq2.bin")
+
+th <- c(1, 2, 3, 4, 5, 6)
+nerr <- rep(2, 6)
+
+savename <- sprintf("finitevolume_B_cs")
+
+determinesyserrfinitevolume(resultpath1="/home/gross/Documents/heavymesons/data/cs/cB211.07.64/", filenames1=files, L1=64,
+                            resultpath2="/home/gross/Documents/heavymesons/data/cs/cB211.07.96/", filenames2=files, L2=96,
+                            th=th, savename=savename, nerr1=nerr, nerr2=nerr)
+
+
+```
+```{r}
+res <- read.table("finitevolume_B_cd.csv", header=TRUE)
+res
+max(res$P)
+max(res$Delta)
+res <- read.table("finitevolume_B_cs.csv", header=TRUE)
+res
+max(res$P)
+max(res$Delta)
+```
+

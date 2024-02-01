@@ -14,8 +14,8 @@ determineDGDq2 <- function(resultpath, filenames, tsnk, Nt, th,
     
     resultdat <- list(tsnk=c(), Nt=c(), w=c(), nerr=c(), iz=c(), icomb=c(), th=c(), includesys = c(), DGDq2 = c(), dDGDq2 = c(), dat = array(NA, dim=c(1000, length(tsnk)*2*length(isets)*length(icomb)*4)))
     parindex <- 1
-for (index in seq(1, length(files))){
-    data <- read_in_DGDq2(filename=files[index], write=FALSE, resultpath=resultpath)
+for (index in seq(1, length(filenames))){
+    data <- read_in_DGDq2(filename=filenames[index], write=FALSE, resultpath=resultpath)
 for (iset in isets) {
     mymasks <- list(c(NA))
     for (iz in c(0, 1, 2, 3)) {

@@ -46,7 +46,6 @@ plot_stability_lambda <- function(path, nset=1, neps=22, nnorm=3, inputfile="") 
                              "C_ref", "C", "rho", "drho_stat", "drho_syst",
                              "drho_tot", "resflag")))
                     if(!inherits(data, "try-error")) {
-                        print(title)
                         data <- data[-seq(1, 3*nnorm), ]
                         data$ik <- as.integer(data$ik)
                         data <- data[data$spectreflag == 1, ]
@@ -56,9 +55,13 @@ plot_stability_lambda <- function(path, nset=1, neps=22, nnorm=3, inputfile="") 
                             xlab="lambda/lambda_start", ylab="rho",
                             main=title,
                             log="x"))
+                        
+                        legend(x="bottomleft", col=seq(1, nnorm),
+                            pch=seq(1, nnorm), legend=legendtext, title="norm")
     
-                        for (inorm in seq(1, (nnorm))) {
-                            if (inorm == 1) {
+                        for (inorm in seq(0, (nnorm-1))) {
+                            if (inorm == 0) {
+                                print(data$rho[data$ik == inorm & data$resflag == 1])
                                 try(xrange <- c(min(data$lambdalambda_start), max(data$lambdalambda_start)) * c(0.5, 2))
                                 try(polygon(x=c(xrange, rev(xrange)),
                                     y=c(rep(data$rho[data$ik == inorm & data$resflag == 1] - data$drho_stat[data$ik == inorm & data$resflag == 1], 2),
@@ -66,16 +69,14 @@ plot_stability_lambda <- function(path, nset=1, neps=22, nnorm=3, inputfile="") 
                                     col=adjustcolor("red", alpha.f=0.2), border=NA))
         
                                 try(lines(x=xrange,
-                                    y=rep(data$rho[data$ik == inorm & data$resflag == 1], 2), col=inorm))
+                                    y=rep(data$rho[data$ik == inorm & data$resflag == 1], 2), col=inorm+1))
                             }
     
                             try(plotwitherror(x=data$lambdalambda_start[data$ik == inorm],
                                         y=data$rho[data$ik == inorm],
                                         dy=data$drho_stat[data$ik == inorm],
-                                        pch=inorm, col=inorm, rep=TRUE))
+                                        pch=inorm+1, col=inorm+1, rep=TRUE))
                         }
-                        legend(x="bottomleft", col=seq(1, nnorm),
-                            pch=seq(1, nnorm), legend=legendtext, title="norm")
                     }
                 }
             }
@@ -105,19 +106,22 @@ plot_stability_AA0 <- function(path, nset=1, neps=22, nnorm=3, inputfile="") {
                              "C_ref", "C", "rho", "drho_stat", "drho_syst",
                              "drho_tot", "resflag")))
                     if(!inherits(data, "try-error")) {
-                        print(title)
                         data <- data[-seq(1, 3*nnorm), ]
                         data$ik <- as.integer(data$ik)
                         data <- data[data$spectreflag == 1, ]
+                        print(data)
     
                         try(plot(NA, xlim=c(min(data$AA0_ref), max(data$AA0_ref)),
                             ylim=c(min(data$rho - data$drho_stat), max(data$rho + data$drho_stat)),
                             xlab="[A/A0]_ref", ylab="rho",
                             main=title,
                             log="x"))
+                        
+                        legend(x="bottomleft", col=seq(1, nnorm),
+                            pch=seq(1, nnorm), legend=legendtext, title="norm")
     
-                        for (inorm in seq(1, (nnorm))) {
-                            if (inorm == 1) {
+                        for (inorm in seq(0, (nnorm-1))) {
+                            if (inorm == 0) {
                                 try(xrange <- c(min(data$AA0_ref), max(data$AA0_ref)) * c(0.5, 2))
                                 try(polygon(x=c(xrange, rev(xrange)),
                                     y=c(rep(data$rho[data$ik == inorm & data$resflag == 1] - data$drho_stat[data$ik == inorm & data$resflag == 1], 2),
@@ -125,16 +129,14 @@ plot_stability_AA0 <- function(path, nset=1, neps=22, nnorm=3, inputfile="") {
                                     col=adjustcolor("red", alpha.f=0.2), border=NA))
         
                                 try(lines(x=xrange,
-                                    y=rep(data$rho[data$ik == inorm & data$resflag == 1], 2), col=inorm))
+                                    y=rep(data$rho[data$ik == inorm & data$resflag == 1], 2), col=inorm+1))
                             }
     
                             try(plotwitherror(x=data$AA0_ref[data$ik == inorm],
                                         y=data$rho[data$ik == inorm],
                                         dy=data$drho_stat[data$ik == inorm],
-                                        pch=inorm, col=inorm, rep=TRUE))
+                                        pch=inorm+1, col=inorm+1, rep=TRUE))
                         }
-                        legend(x="bottomleft", col=seq(1, nnorm),
-                            pch=seq(1, nnorm), legend=legendtext, title="norm")
                     }
                 }
             }
@@ -176,12 +178,12 @@ plot_reconstruction <- function(path, nset=1, neps=22, nnorm=3, plotnorm=c(-1), 
                                 xlab="omega", ylab="kernel",
                                 main=paste(title, legendtext[inorm]))
     
-                            lines(x=data$omega[data$ik == inorm],
-                                    y=data$kernel[data$ik == inorm],
+                            lines(x=data$omega[data$ik == inorm-1],
+                                    y=data$kernel[data$ik == inorm-1],
                                     col=1)
     
-                            lines(x=data$omega[data$ik == inorm],
-                                    y=data$kernelbar[data$ik == inorm],
+                            lines(x=data$omega[data$ik == inorm-1],
+                                    y=data$kernelbar[data$ik == inorm-1],
                                     col=2)
                                     
                             legend(x="bottomleft", col=seq(1, 2),
