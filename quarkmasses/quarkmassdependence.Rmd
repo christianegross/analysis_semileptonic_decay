@@ -1,0 +1,350 @@
+---
+title: "Additional error from quark mass variations"
+author: "Christiane"
+date: "2024-06-25"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+source("/home/gross/Documents/heavymesons/scripts_christiane/extrapolate_sigma_templates/functions_stability_plots.R")
+source("/home/gross/Documents/heavymesons/scripts_christiane/extrapolate_sigma_templates/calc_DGDq2.R")
+source("/home/gross/Documents/heavymesons/scripts_christiane/extrapolate_sigma_templates/calc_DGDq2_aic.R")
+library("hadron")
+zlist <- c(3, 0, 1, 2)
+errlist <- c("stat")
+sumup <-FALSE
+nconfig <- 300
+amus <- 0.01692
+damus <- 0.00031
+amuc <- 0.2368
+damuc <- 0.0036
+amud <- 0.00072
+amusst <- 0.019
+amucch <- 0.26
+```
+
+# Quark mass uncertainty
+
+We want to get the error introduced by the uncertainty on the quark masses, both on the meson masses and on the differential decay rate. 
+
+Here, we focus on estimating the error on the decay rate after the $\epsilon \to 0$ limit has already been taken, but it should be straightforward to do this before this limit as well. We first conisder this after the limit because there are fewer points necessary for a full analysis.
+
+This error cannot be computed after the continuum limit or volume limit, because it is available only for one volume and one lattice spacing. 
+So it should be the second error added to the data, with the first being the systematical error from the HLT procedure. 
+After that, the orders of inifinite volume, $\epsilon \to 0$ and continuum limit can still be chosen.
+
+We have two methods:
+
+1. conventional: run four simulations, at default mass of strange and charm quark mass (un), changed strange mass (st), changed charm mass (ch) and both masses changed (cs). The quark mass is the same for all configurations
+2. new method: run another simulation, inputting a different quark mass for each configuration. The masses are drawn from the expected distribution. These sets of data are called (va).
+
+All five sets of measurements have the same sources, and were done on the cB211.072.48 ensemble with tsink=48 and tj=36.
+
+Bootstrap samples are available, but to test the method, everything is calculaated with the mean value only.
+
+## Calculating the additional error
+
+$x$ denotes a measurement of an observable, $\sigma$ denotes its error. The set from which the measurement is taken is specified as an index.
+
+### first method
+
+$m_{strange}=\frac{x_{un}-x_{st}}{a\mu_{s, un}-a\mu_{s, st}}$, analogously for charm.
+
+$\sigma_{quark}=\sqrt{(|m_{strange}| \cdot \Delta a\mu_{s, un})^2 + (|m_{charm}| \cdot \Delta a\mu_{c, un})^2}$
+
+Because we also have a measurement where both the strange and charm quark mass are changed, we can calculate each slope two times, at two different masses of the other quark. This allows us to test the hypothesis that the changes in the quark mass are independent.
+
+This method also allows us to extract an error of the error, by calculating the error of the slope with the help of bootstrap samples.
+
+### second method
+
+$\sigma_{tot}^2=\sigma_{va}^2=\sigma_{un}^2+\sigma_{quark}^2$
+
+$\sigma_{quark} = \sqrt{\sigma_{va}^2-\sigma_{un}^2}$
+
+## available data
+
+```{r}
+plot(x=c(1, 1, 2, 2), y=c(1, 2, 1, 2), xaxt="n", yaxt="n", xlab="m_strange", ylab="m_charm", xlim=c(0.75, 3), ylim=c(0.5, 2.5))
+axis(side=1, at=c(1, 2), label=c("0.01692", "0.019"))
+axis(side=2, at=c(1, 2), label=c("0.2368", "0.26"))
+arrows(x0=1, x1=1, y0=1, y1=2, col="red")
+arrows(x0=1, x1=2, y0=1, y1=1, col="red")
+arrows(x0=2, x1=2, y0=1, y1=2, col="blue")
+arrows(x0=1, x1=2, y0=2, y1=2, col="blue")
+legend(x="topright", legend=c("measurement", "slope_low", "slope_high"),
+       col=c(1, 2, 4), pch=c(1, NA, NA), lty=c(NA, 1, 1))
+```
+
+
+
+
+## Mesons
+
+### first method
+
+```{r}
+dat <- read.table("~/Documents/heavymesons/scripts_christiane/mesons/calculatedmesonmasses_change_quark_mass.csv", header=T)
+datboot <- readRDS("~/Documents/heavymesons/scripts_christiane/mesons/calculatedmesonmasses_change_quark_mass.RDS")
+datst <-dat[dat$ens=="cB211.07.48_strange", ]
+datch <-dat[dat$ens=="cB211.07.48_charm", ]
+datcs <-dat[dat$ens=="cB211.07.48_charm_strange", ]
+dat <- dat[dat$ens=="cB211.07.48_novariation", ]
+stopifnot(dat$name == datst$name)
+stopifnot(dat$name == datch$name)
+booterr <- data.frame(slopestboot_one=c(), sslopestboot_one=c(), slopechboot_one=c(), sslopechboot_one=c(),
+                      slopestboot_two=c(), sslopestboot_two=c(), slopechboot_two=c(), sslopechboot_two=c())
+# datboot$info
+for(name in dat$name) {
+  datbootst <- datboot[[name]][[which(datboot$info$name=="B48_strange")]]$effmassfit$t[, 1]
+  datbootch <- datboot[[name]][[which(datboot$info$name=="B48_charm")]]$effmassfit$t[, 1]
+  datbootnv <- datboot[[name]][[which(datboot$info$name=="B48_static")]]$effmassfit$t[, 1]
+  datbootcs <- datboot[[name]][[which(datboot$info$name=="B48_charm_strange")]]$effmassfit$t[, 1]
+  newline <- data.frame(slopestboot_one=mean((datbootnv - datbootst)/(amus-amusst)),
+                        dslopestboot_one=sd((datbootnv - datbootst)/(amus-amusst)),
+                        slopechboot_one=mean((datbootnv - datbootch)/(amus - amucch)),
+                        dslopechboot_one=sd((datbootnv - datbootch)/(amus - amucch)),
+                        slopestboot_two=mean((datbootch - datbootcs)/(amus-amusst)),
+                        dslopestboot_two=sd((datbootch - datbootcs)/(amus-amusst)),
+                        slopechboot_two=mean((datbootst - datbootcs)/(amus - amucch)),
+                        dslopechboot_two=sd((datbootst - datbootcs)/(amus - amucch)))
+  booterr <- rbind(booterr, newline)
+}
+# booterr
+emqmone <- data.frame(name=dat$name, mean=dat$amass, sd=dat$damass, 
+                      slopest_one = (dat$amass-datst$amass)/(amus - amusst), 
+                      slopech_one = (dat$amass-datch$amass)/(amus - amucch), 
+                      slopest_two = (datch$amass-datcs$amass)/(amus - amusst), 
+                      slopech_two = (datst$amass-datcs$amass)/(amus - amucch))
+emqmone <- cbind(emqmone, booterr)
+emqmone$sdst_one = abs(emqmone$slopest_one) * damus
+emqmone$sdch_one = abs(emqmone$slopech_one) * damuc
+emqmone$sdstboot_one = abs(emqmone$slopestboot_one) * damus
+emqmone$sdchboot_one = abs(emqmone$slopechboot_one) * damuc
+emqmone$sdsdstboot_one = abs(emqmone$dslopestboot_one) * damus
+emqmone$sdsdchboot_one = abs(emqmone$dslopechboot_one) * damuc
+emqmone$sdquark_one = sqrt(emqmone$sdst_one^2 + emqmone$sdch_one^2)
+emqmone$sdquarkboot_one = sqrt(emqmone$sdstboot_one^2 + emqmone$sdchboot_one^2)
+emqmone$sdsdquarkboot_one = (sqrt((emqmone$sdstboot_one * emqmone$sdsdchboot_one)^2 + 
+                                    (emqmone$sdchboot_one * emqmone$sdsdstboot_one)^2) 
+                             / sqrt(emqmone$sdstboot_one^2 + emqmone$sdchboot_one^2))
+emqmone$sdst_two = abs(emqmone$slopest_two) * damus
+emqmone$sdch_two = abs(emqmone$slopech_two) * damuc
+emqmone$sdstboot_two = abs(emqmone$slopestboot_two) * damus
+emqmone$sdchboot_two = abs(emqmone$slopechboot_two) * damuc
+emqmone$sdsdstboot_two = abs(emqmone$dslopestboot_two) * damus
+emqmone$sdsdchboot_two = abs(emqmone$dslopechboot_two) * damuc
+emqmone$sdquark_two = sqrt(emqmone$sdst_two^2 + emqmone$sdch_two^2)
+emqmone$sdquarkboot_two = sqrt(emqmone$sdstboot_two^2 + emqmone$sdchboot_two^2)
+emqmone$sdsdquarkboot_two = (sqrt((emqmone$sdstboot_two * emqmone$sdsdchboot_two)^2 + 
+                                    (emqmone$sdchboot_two * emqmone$sdsdstboot_two)^2) 
+                             / sqrt(emqmone$sdstboot_two^2 + emqmone$sdchboot_two^2))
+errormesonquarkmassone <- emqmone
+errormesonquarkmassone
+# knitr::kable(errormesonquarkmassone, digits=5)
+plotwitherror(x=seq(1, 10), y=rep(0, 10), dy=emqmone$dslopestboot_one, 
+              main="slopes strange", xlab="index", ylab="differenceslope strange")
+plotwitherror(x=seq(1, 10), y=emqmone$slopestboot_two - emqmone$slopestboot_one, dy=emqmone$dslopestboot_two, 
+              pch=2, col=2, rep=TRUE)
+legend(x="topright", legend=c("low charm mass", "high charm mass"), col=c(1, 2), pch=c(1, 2))
+plotwitherror(x=seq(1, 10), y=rep(0, 10), dy=emqmone$dslopechboot_one, 
+              main="difference slopes charm", xlab="index", ylab="slope charm")
+plotwitherror(x=seq(1, 10), y=emqmone$slopechboot_two - emqmone$slopechboot_one, dy=emqmone$dslopechboot_two, 
+              pch=2, col=2, rep=TRUE)
+legend(x="topright", legend=c("low strange mass", "high strange mass"), col=c(1, 2), pch=c(1, 2))
+```
+
+### second method
+
+```{r}
+dat <- read.table("~/Documents/heavymesons/scripts_christiane/mesons/calculatedmesonmasses_vary_quark_mass.csv", header=T)
+datvar <-dat[dat$ens=="cB211.07.48_vary", ]
+dat <- dat[dat$ens=="cB211.07.48_novariation", ]
+stopifnot(dat$name == datvar$name)
+errormesonquarkmasstwo <- data.frame(name=dat$name, mean=dat$amass, sd=dat$damass, sdvar=datvar$damass, sdquark=sqrt(datvar$damass^2-dat$damass^2))
+knitr::kable(errormesonquarkmasstwo, digits=5)
+```
+
+
+### comparison
+
+We get two values in the first method, one where the mass of the other quark is low and one where it is high.
+
+```{r}
+comparemesonmass <- data.frame(name=errormesonquarkmasstwo$name, mean=errormesonquarkmasstwo$mean, 
+                               sd=errormesonquarkmasstwo$sd, 
+                               erroronelow=errormesonquarkmassone$sdquark_one,
+                               erroronelowboot=errormesonquarkmassone$sdquarkboot_one, 
+                               erroronehigh=errormesonquarkmassone$sdquark_two,
+                               erroronehighboot=errormesonquarkmassone$sdquarkboot_two, 
+                               errortwo=errormesonquarkmasstwo$sdquark)
+knitr::kable(comparemesonmass, digits=5)
+plot(x=seq(1, 10), y=comparemesonmass$erroronelow, xlab="index", ylab="sd_quark", 
+     main="absolute value of error from quark masses")
+points(x=seq(1, 10), y=comparemesonmass$erroronehigh, col=3, pch=3)
+points(x=seq(1, 10), y=comparemesonmass$errortwo, col=2, pch=2)
+legend(x="topleft", legend=c("met. 1 low", "met. 1 high", "met. 2"), col=c(1, 3, 2), pch=c(1, 3, 2))
+
+plot(x=seq(1, 10), y=comparemesonmass$erroronelow/comparemesonmass$sd, xlab="index", ylab="sd_quark",
+     main="relative size of error from quark mass to statistical error")
+points(x=seq(1, 10), y=comparemesonmass$erroronehigh/comparemesonmass$sd, col=3, pch=3)
+points(x=seq(1, 10), y=comparemesonmass$errortwo/comparemesonmass$sd, col=2, pch=2)
+legend(x="topleft", legend=c("met. 1 low", "met. 1 high", "met. 2"), col=c(1, 3, 2), pch=c(1, 3, 2))
+```
+
+
+Here we see that the two methods do not agree. The conventional method leads to a much higher error than the new one.
+However, the two ways of determining the error with the first method (two different fixed quark masses) agree with each other.
+The error due to the quark masses is several times larger than the statistical error for all mesons but the D and the pion.
+For the pion, we do not see any mass change, as was expected from the quark content.
+For the D, the signal is noisy and so the statistical error is large.
+
+## Decay rate
+
+After the limit $\epsilon\to 0$ has been taken. Kernel: sigmoid, Channel: cd
+
+### first method
+
+```{r}
+dat <- read.table("~/Documents/heavymesons/data/newinput/tables/DG_quarkmass_cB48_cd_sigmoid.csv", header=T)
+datboot <- readRDS("~/Documents/heavymesons/data/newinput/tables/DG_quarkmass_fitlist_cB48_cd_sigmoid.RDS")
+datst <-dat[dat$fitno==3 & dat$errtype=="stat", ]
+datch <-dat[dat$fitno==4 & dat$errtype=="stat", ]
+datcs <-dat[dat$fitno==5 & dat$errtype=="stat", ]
+dat <- dat[dat$fitno==1 & dat$errtype=="stat", ]
+stopifnot(dat$th == datst$th)
+stopifnot(dat$th == datch$th)
+booterr <- data.frame(slopestboot_one=c(), sslopestboot_one=c(), slopechboot_one=c(), sslopechboot_one=c(),
+                      slopestboot_two=c(), sslopestboot_two=c(), slopechboot_two=c(), sslopechboot_two=c())
+for(th in c(2, 4, 6, 8, 9.5)) {
+  for(iz in c(0, 1, 2, 3)) {
+    index <- which(names(datboot) == sprintf("iset 0 iz %d icomb 0 tsnk 48 Nt 24 th %s nerr 2 stat", iz, th))
+    datbootnv <- datboot[[index]]$fitresults[[1]]$t[, 1]
+    datbootst <- datboot[[index]]$fitresults[[3]]$t[, 1]
+    datbootch <- datboot[[index]]$fitresults[[4]]$t[, 1]
+    datbootcs <- datboot[[index]]$fitresults[[5]]$t[, 1]
+    newline <- data.frame(slopestboot_one=mean((datbootnv - datbootst)/(amus-amusst)),
+                          dslopestboot_one=sd((datbootnv - datbootst)/(amus-amusst)),
+                          slopechboot_one=mean((datbootnv - datbootch)/(amus - amucch)),
+                          dslopechboot_one=sd((datbootnv - datbootch)/(amus - amucch)),
+                          slopestboot_two=mean((datbootch - datbootcs)/(amus-amusst)),
+                          dslopestboot_two=sd((datbootch - datbootcs)/(amus-amusst)),
+                          slopechboot_two=mean((datbootst - datbootcs)/(amus - amucch)),
+                          dslopechboot_two=sd((datbootst - datbootcs)/(amus - amucch)))
+    booterr <- rbind(booterr, newline)
+    
+  }
+}
+
+errordecayquarkmassone <- data.frame(th=dat$th, Z=dat$iz, mean=dat$DGDq2, sd=dat$dDGDq2, 
+                                     slopest_one = (dat$DGDq2-datst$DGDq2)/(amus - amusst), 
+                                     slopech_one = (dat$DGDq2-datch$DGDq2)/(amus - amucch), 
+                                     slopest_two = (datch$DGDq2-datcs$DGDq2)/(amus - amusst), 
+                                     slopech_two = (datst$DGDq2-datcs$DGDq2)/(amus - amucch))
+errordecayquarkmassone <- cbind(errordecayquarkmassone, booterr)
+errordecayquarkmassone$sdst_one = abs(errordecayquarkmassone$slopest_one) * damus
+errordecayquarkmassone$sdch_one = abs(errordecayquarkmassone$slopech_one) * damuc
+errordecayquarkmassone$sdstboot_one = abs(errordecayquarkmassone$slopestboot_one) * damus
+errordecayquarkmassone$sdchboot_one = abs(errordecayquarkmassone$slopechboot_one) * damuc
+errordecayquarkmassone$sdsdstboot_one = abs(errordecayquarkmassone$dslopestboot_one) * damus
+errordecayquarkmassone$sdsdchboot_one = abs(errordecayquarkmassone$dslopechboot_one) * damuc
+errordecayquarkmassone$sdquark_one = sqrt(errordecayquarkmassone$sdst_one^2 + errordecayquarkmassone$sdch_one^2)
+errordecayquarkmassone$sdquarkboot_one = sqrt(errordecayquarkmassone$sdstboot_one^2 + errordecayquarkmassone$sdchboot_one^2)
+errordecayquarkmassone$sdsdquarkboot_one = (sqrt((errordecayquarkmassone$sdstboot_one * errordecayquarkmassone$sdsdchboot_one)^2 + 
+                                                   (errordecayquarkmassone$sdchboot_one * errordecayquarkmassone$sdsdstboot_one)^2) 
+                                            / sqrt(errordecayquarkmassone$sdstboot_one^2 + errordecayquarkmassone$sdchboot_one^2))
+errordecayquarkmassone$sdst_two = abs(errordecayquarkmassone$slopest_two) * damus
+errordecayquarkmassone$sdch_two = abs(errordecayquarkmassone$slopech_two) * damuc
+errordecayquarkmassone$sdstboot_two = abs(errordecayquarkmassone$slopestboot_two) * damus
+errordecayquarkmassone$sdchboot_two = abs(errordecayquarkmassone$slopechboot_two) * damuc
+errordecayquarkmassone$sdsdstboot_two = abs(errordecayquarkmassone$dslopestboot_two) * damus
+errordecayquarkmassone$sdsdchboot_two = abs(errordecayquarkmassone$dslopechboot_two) * damuc
+errordecayquarkmassone$sdquark_two = sqrt(errordecayquarkmassone$sdst_two^2 + errordecayquarkmassone$sdch_two^2)
+errordecayquarkmassone$sdquarkboot_two = sqrt(errordecayquarkmassone$sdstboot_two^2 + errordecayquarkmassone$sdchboot_two^2)
+errordecayquarkmassone$sdsdquarkboot_two = (sqrt((errordecayquarkmassone$sdstboot_two * errordecayquarkmassone$sdsdchboot_two)^2 + 
+                                                   (errordecayquarkmassone$sdchboot_two * errordecayquarkmassone$sdsdstboot_two)^2) 
+                                            / sqrt(errordecayquarkmassone$sdstboot_two^2 + errordecayquarkmassone$sdchboot_two^2))
+# knitr::kable(errordecayquarkmassone, digits=5)
+errordecayquarkmassone
+```
+```{r}
+for(Z in c(0, 1, 2, 3)) {
+  mask <- errordecayquarkmassone$Z==Z
+  plotwitherror(x=errordecayquarkmassone$th[mask], y=rep(0, 5), dy=errordecayquarkmassone$dslopestboot_one[mask], 
+                main=paste("difference slopes strange, Z=", Z), xlab="th", ylab="difference slope strange",
+                ylim=max(errordecayquarkmassone$dslopestboot_one[mask])*c(-1, 1))
+  plotwitherror(x=errordecayquarkmassone$th[mask], 
+                y=abs(errordecayquarkmassone$slopestboot_two[mask]) - abs(errordecayquarkmassone$slopestboot_one[mask]),
+                dy=errordecayquarkmassone$dslopestboot_two[mask], 
+                pch=2, col=2, rep=TRUE)
+  legend(x="topright", legend=c("low charm mass", "high charm mass"), col=c(1, 2), pch=c(1, 2))
+  plotwitherror(x=errordecayquarkmassone$th[mask], y=rep(0, 5), dy=errordecayquarkmassone$dslopechboot_one[mask], 
+                main=paste("difference slopes charm, Z=", Z), xlab="th", ylab="slope charm",
+                ylim=max(errordecayquarkmassone$dslopechboot_one[mask])*c(-1, 1))
+  plotwitherror(x=errordecayquarkmassone$th[mask], 
+                y=abs(errordecayquarkmassone$slopechboot_two[mask]) - abs(errordecayquarkmassone$slopechboot_one[mask]),
+                dy=errordecayquarkmassone$dslopechboot_two[mask], 
+                pch=2, col=2, rep=TRUE)
+  legend(x="topright", legend=c("low strange mass", "high strange mass"), col=c(1, 2), pch=c(1, 2))
+}
+```
+
+### second method
+
+```{r}
+dat <- read.table("~/Documents/heavymesons/data/newinput/tables/DG_quarkmass_cB48_cd_sigmoid.csv", header=T)
+datvar <-dat[dat$fitno==3 & dat$errtype=="stat", ]
+dat <- dat[dat$fitno==1 & dat$errtype=="stat", ]
+stopifnot(dat$th == datvar$th)
+errordecayquarkmasstwo <- data.frame(th=dat$th, Z=dat$iz, mean=dat$DGDq2, sd=dat$dDGDq2, sdvar=datvar$dDGDq2, sdquark=sqrt(datvar$dDGDq2^2-dat$dDGDq2^2))
+knitr::kable(errordecayquarkmasstwo, digits=5)
+```
+
+
+### comparison
+
+```{r}
+comparedecaymass <- data.frame(th=errordecayquarkmasstwo$th, Z=errordecayquarkmasstwo$Z, mean=errordecayquarkmasstwo$mean, 
+                               sd=errordecayquarkmasstwo$sd, 
+                               erroronelow =errordecayquarkmassone$sdquark_one, 
+                               erroronehigh =errordecayquarkmassone$sdquark_two, 
+                               errorerroronelow =errordecayquarkmassone$sdsdquarkboot_one, 
+                               errorerroronehigh =errordecayquarkmassone$sdsdquarkboot_two, 
+                               errortwo=errordecayquarkmasstwo$sdquark)
+knitr::kable(comparedecaymass, digits=5, format.args=list(scientific=F))
+for(iz in c(0, 1, 2, 3)) {
+  mask <- comparedecaymass$Z==iz
+  plotwitherror(x=comparedecaymass$th[mask], y=comparedecaymass$erroronelow[mask],
+                dy=comparedecaymass$errorerroronelow[mask], 
+                xlab="th", ylab="sd_quark",
+                main=paste("absolute value of error from quark masses, Z", iz),
+                ylim=c(0, max(comparedecaymass$erroronelow[mask], comparedecaymass$erroronehigh[mask], na.omit(comparedecaymass$errortwo[mask]))))
+  plotwitherror(x=comparedecaymass$th[mask], y=comparedecaymass$erroronehigh[mask],
+                dy=comparedecaymass$errorerroronehigh[mask], col=3, pch=3, rep=TRUE)
+  points(x=comparedecaymass$th[mask], y=comparedecaymass$errortwo[mask], col=2, pch=2)
+  legend(x="topleft", legend=c("met. 1 low", "met. 1 high", "met. 2"), col=c(1, 3, 2), pch=c(1, 3, 2))
+}
+for(iz in c(0, 1, 2, 3)) {
+  mask <- comparedecaymass$Z==iz
+  plotwitherror(x=comparedecaymass$th[mask], y=comparedecaymass$erroronelow[mask]/comparedecaymass$sd[mask],
+                dy=comparedecaymass$errorerroronelow[mask]/comparedecaymass$sd[mask], 
+       xlab="th", ylab="sd_quark", 
+       main=paste("relative size of error from quark mass to statistical error, Z", iz),
+       ylim=c(0, max(comparedecaymass$erroronelow[mask]/comparedecaymass$sd[mask], 
+                     comparedecaymass$erroronehigh[mask]/comparedecaymass$sd[mask],
+                     na.omit(comparedecaymass$errortwo[mask]/comparedecaymass$sd[mask]))))
+  plotwitherror(x=comparedecaymass$th[mask], y=comparedecaymass$erroronehigh[mask]/comparedecaymass$sd[mask],
+                dy=comparedecaymass$errorerroronehigh[mask]/comparedecaymass$sd[mask], col=3, pch=3, rep=TRUE)
+  points(x=comparedecaymass$th[mask], y=comparedecaymass$errortwo[mask]/comparedecaymass$sd[mask], col=2, pch=2)
+  legend(x="topleft", legend=c("met. 1 low", "met. 1 high", "met. 2"), col=c(1, 3, 2), pch=c(1, 3, 2))
+}
+```
+
+Again, we see that the second method is unreliable. 
+For the decay rate, the error is not enlarged, and so we cannot derive an error estimate coming from the quark masses.
+
+The errors from the two different ways of estimating the slopes are different, suggesting eiher that the dependence on the quark masses is not independent, or that there are some instabilities in the analysis.
+
