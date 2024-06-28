@@ -1,0 +1,513 @@
+---
+title: "Meson Masses"
+author: "Christiane"
+date: "2024-03-28"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE)
+library("hadron")
+```
+
+## Masses
+
+We take the mass of the $D_s$ as a reference, and express every other mass in units of the lattice spacing, in physical units, and in units of the heavy mass.
+We determine the minimum value of $m_{light}/m_{D_s}$, from the jackknife.
+We do not take the bootstrap because we cannot guarantee this will lead to the same result as in the HLT code.
+
+We define a function to read in the preprocessed data, and read in the boundaries from an external table.
+
+```{r defineinfos}
+# After preprocessing the data for the mesons, ... we have the real 
+# and imaginary parts of the correlators in one file each. 
+# We read those into a cf object.
+# the imaginary data need not be given.
+
+readcffrompreprocessed <- function (realfile, path  = "", imfile="", im=F) {
+  ## determine number of measurements
+  nmeas <- read.table(paste0(path, realfile), nrows=1)
+  Time <- nmeas$V2
+  confno <- nmeas$V1
+  dat <- read.table(paste0(path, realfile), skip=1)
+  tmp <- matrix(data=dat$V2, nrow=Time, ncol=confno)
+  # print(nmeas)
+  #~   print(tmp)
+  Dm <- dim(tmp)
+  ret <- cf_meta(nrObs = 1, Time =  Time, nrStypes = 1)
+  if (im==F) ret <- cf_orig(ret, cf = t(tmp))
+  if (im==T) {
+    stopifnot(file.exists(paste0(path, imfile)))
+    datim <- read.table(paste0(path, imfile), skip=1)
+    tmpim <- matrix(data=datim$V2, nrow=Time, ncol=confno)
+    ret <- cf_orig(ret, cf = t(tmp), icf=t(tmpim))
+  }
+  ret$conf.index <- confno
+  ret <- symmetrise.cf(ret)
+  
+  return(invisible(ret))
+}
+
+
+tab <- read.table(file="tableboundaries.csv", header=T, sep=",")
+## adjust the boundaries so that they are calculated for the same time slices as in the HLT algorithm
+tab$t1 <- tab$t1 - 1
+tab$t2 <- tab$t2 - 1
+# knitr::kable(tab)
+
+ensinfos <- data.frame(ens=c("cB211.07.64", "cB211.07.96", "cC211.06.80", "cD211.054.96", "cE211.044.112", "cB211.07.48"), 
+                       name=c("B64", "B96", "C80", "D96", "E112", "B48"), afm=c(0.07957, 0.07957, 0.06821, 0.05692, 0.04891, 0.07957), 
+                       uplim=c(15, 45, 15, 15, 15, 5), lowlim=c(15, 15, 15, 15, 15, 5), 
+                       kappa=c(0.1394265, 0.1394265, 0.13875285, 0.137972174, 0.13741288, 0.1394265),
+                       amu_d = c(0.00072, 0.00072, 0.0006, 0.00054, 0.00044, 0.00072), 
+                       amu_s = c(0.01692, 0.01692, 0.01529, 0.01326, 0.011825301, 0.01692), 
+                       amu_c = c(0.2368, 0.2368, 0.2019, 0.1666, 0.142554, 0.2368), 
+                       L=c(64, 96, 80, 96, 112, 48), 
+                       B_ens=c(T, T, F, F, F, T))
+fmtogev <- 1/0.197
+knitr::kable(ensinfos)
+
+res <- data.frame(ens=c(), name=c(), amass=c(), damass=c(), massgev=c(), dmassgev=c(), massmH=c(), minmassmH=c())
+massPDG <- data.frame(name=c("Ds", "D^0", "D^pm", "eta", "K^0", "K^pm", "pi^0", "pi^pm"), 
+                      massmev=c("1968", "1865", "1870", "--", "497", "494", "135", "140"))
+massPDGplot <- data.frame(name=c("Ds", "D", "K", "pi"), 
+                          massgev=c(1968, 1867.5, 495.5, 137.5)/1000)
+
+reslist <- list(Ds=list(), D=list(), eta=list(), K=list(), pi=list(), 
+                info=data.frame(name=rep(NA, 6), 
+                                afm=rep(NA, 6), L=rep(NA, 6), B_ens=rep(NA, 6)))
+
+reslistdecay <- list(Ds=list(), D=list(), eta=list(), K=list(), pi=list(), 
+                     info=data.frame(name=rep(NA, 6), 
+                                     afm=rep(NA, 6)))
+```
+
+## Masses per ensemble and meson
+
+First, we calculate the reference mass, the smeared-smeared $D_s$ meson.
+Then, we can calculate all other masses and compare to the reference mass.
+Here, we also look at the smeared-local masses
+Instead of the physical $\eta$, we calculate the mass of the $\eta_s$.
+
+
+```{r masssingle, eval=F}
+index <- 1
+# for (ens in c("cB211.07.48")) {
+for (ens in unique(tab$ensemble)) {
+  Ds <- readcffrompreprocessed(realfile=sprintf("~/Documents/heavymesons/data/meson/%s/4Pts_meson_data/Ds.dat", ens))
+  Ds <- bootstrap.cf(Ds, boot.R = 300)
+  # Ds <- jackknife.cf(Ds)
+  Ds <- bootstrap.effectivemass(Ds)
+  Ds <- fit.effectivemass(Ds, t1=tab$t1[tab$ensemble==ens & tab$name=="Ds"], t2=tab$t2[tab$ensemble==ens & tab$name=="Ds"])
+  print(paste("fit region", tab$t1[tab$ensemble==ens & tab$name=="Ds"], tab$t2[tab$ensemble==ens & tab$name=="Ds"],
+              "chi^2_red", sprintf("%.3f", Ds$effmassfit$chisqr/Ds$effmassfit$dof)))
+  plotregion <- na.omit(Ds$effMass[ensinfos$lowlim[ensinfos$ens==ens]:(Ds$Time/2-ensinfos$uplim[ensinfos$ens==ens])])
+  plot(Ds, xlab="t/a", ylab="ameff",
+       ylim=c(min(plotregion), max(plotregion)), main=paste("Ds", ensinfos$name[ensinfos$ens==ens]))
+  newline <- data.frame(ens=ens, name="Ds", amass=Ds$effmassfit$t0[1], damass=Ds$effmassfit$se[1], 
+                        massgev=Ds$effmassfit$t0[1] / ensinfos$afm[ensinfos$ens==ens] / fmtogev, 
+                        dmassgev=Ds$effmassfit$se[1] / ensinfos$afm[ensinfos$ens==ens] / fmtogev, 
+                        massmH=1, minmassmH=1)
+  res <- rbind(res, newline)
+  reslist[["Ds"]][[index]] <- Ds
+  reslist[["info"]]$name[index] <- ensinfos$name[ensinfos$ens==ens]
+  reslist[["info"]]$afm[index] <- ensinfos$afm[ensinfos$ens==ens]
+  reslist[["info"]]$L[index] <- ensinfos$L[ensinfos$ens==ens]
+  reslist[["info"]]$B_ens[index] <- ensinfos$B_ens[ensinfos$ens==ens]
+  for (name in c("D", "eta", "K", "pi", "Ds_sl", "D_sl", "eta_sl", "K_sl", "pi_sl")) {
+    meson <- readcffrompreprocessed(realfile=sprintf("~/Documents/heavymesons/data/meson/%s/4Pts_meson_data/%s.dat", ens, name))
+    meson <- bootstrap.cf(meson, boot.R = 300)
+    # meson <- jackknife.cf(meson)
+    meson <- bootstrap.effectivemass(meson)
+    meson <- fit.effectivemass(meson, t1=tab$t1[tab$ensemble==ens & tab$name==name], t2=tab$t2[tab$ensemble==ens & tab$name==name])
+    print(paste("fit region", tab$t1[tab$ensemble==ens & tab$name==name], tab$t2[tab$ensemble==ens & tab$name==name],
+                "chi^2_red", sprintf("%.3f", meson$effmassfit$chisqr/meson$effmassfit$dof)))
+    plotregion <- na.omit(meson$effMass[ensinfos$lowlim[ensinfos$ens==ens]:(meson$Time/2-ensinfos$uplim[ensinfos$ens==ens])])
+    plot(meson, xlab="t/a", ylab="ameff",
+         ylim=c(min(plotregion), max(plotregion)), main=paste(name, ensinfos$name[ensinfos$ens==ens]))
+    newline <- data.frame(ens=ens, name=name, amass=meson$effmassfit$t0[1], damass=meson$effmassfit$se[1],
+                          massgev=meson$effmassfit$t0[1] / ensinfos$afm[ensinfos$ens==ens] / fmtogev,
+                          dmassgev=meson$effmassfit$se[1] / ensinfos$afm[ensinfos$ens==ens] / fmtogev, 
+                          massmH=meson$effmassfit$t0[1] / Ds$effmassfit$t0[1], 
+                          minmassmH=min(meson$massfit.tsboot[, 1] / Ds$massfit.tsboot[, 1]))
+    res <- rbind(res, newline)
+    reslist[[name]][[index]] <- meson
+  }
+  index <- index + 1
+}
+respretty <- data.frame(ens=res$ens, name=res$name, 
+                        amass=apply(X=array(c(res$amass, res$damass), dim=c(length(res$amass), 2)), 
+                                    FUN=tex.catwitherror, MARGIN=1, with.cdot=FALSE, with.dollar=FALSE, digits=3), 
+                        massgev=apply(X=array(c(res$massgev, res$dmassgev), dim=c(length(res$massgev), 2)), 
+                                      FUN=tex.catwitherror, MARGIN=1, with.cdot=FALSE, with.dollar=FALSE, digits=3), 
+                        massmH=sprintf("%.3f", res$massmH), minmassmH=sprintf("%.3f", res$minmassmH))
+
+
+knitr::kable(respretty)
+write.table(x=res, file="calculatedmesonmasses.csv", row.names=FALSE)
+saveRDS(object=reslist, file="calculatedmesonmasses.RDS")
+```
+
+## Plot all ensembles together
+
+By rescaling the time with the lattice spacing, we can plot the masses of all ensembles together and find one common set of boundaries per ensemble.
+
+```{r masscombined}
+res <- read.table("calculatedmesonmasses.csv", header=T)
+reslist <- readRDS("calculatedmesonmasses.RDS")
+names <- c("Ds", "D", "eta", "K", "pi", "Ds_sl", "D_sl", "eta_sl", "K_sl", "pi_sl")
+limits <- data.frame(meson=c("Ds", "D", "eta", "K", "pi", "Ds_sl", "D_sl", "eta_sl", "K_sl", "pi_sl"), 
+                     lower=c(9, 8, 9, 9, 9, 9, 8, 9, 9, 9), 
+                     upper=c(18, 14, 25, 22, 22, 18, 14, 25, 22, 22))
+  par(mai = c(1.02, 0.8, 0.32, 0.8))
+colors <- c(1, 2, 3, 4, 5, 6)
+for (name_id in seq_along(names)) {
+  name <- names[name_id]
+  masses <- c()
+  for (i in seq(2, length(reslist$info$name))) {
+    if(name == "D" || name == "D_sl") {
+      masses <- append(masses, 
+                       reslist[[name]][[i]]$effMass[ensinfos$lowlim[i]:(reslist[[name]][[i]]$Time/2-ensinfos$uplim[i]-20)]/reslist$info$afm[i]/fmtogev)
+    } else {
+      masses <- append(masses, 
+                       reslist[[name]][[i]]$effMass[ensinfos$lowlim[i]:(reslist[[name]][[i]]$Time/2-ensinfos$uplim[i])]/reslist$info$afm[i]/fmtogev)
+    }
+  }
+  
+  plotwitherror(x=reslist[[name]][[1]]$t.idx*reslist$info$afm[1]*fmtogev, 
+                y=reslist[[name]][[1]]$effMass/reslist$info$afm[1]/fmtogev, 
+                dy=reslist[[name]][[1]]$deffMass/reslist$info$afm[1]/fmtogev, 
+                xlab="t [GeV^-1]", ylab="m_eff [GeV]", main=name, col=colors[1], pch=colors[1],
+                xlim=c(7, 25), ylim=mean(masses)+sd(masses)*c(-1, 1)*3)
+  for (i in seq(2, length(reslist$info$name))) {
+    plotwitherror(x=reslist[[name]][[i]]$t.idx*reslist$info$afm[i]*fmtogev, 
+                  y=reslist[[name]][[i]]$effMass/reslist$info$afm[i]/fmtogev, 
+                  dy=reslist[[name]][[i]]$deffMass/reslist$info$afm[i]/fmtogev, 
+                  pch=colors[i], col=colors[i], rep=TRUE)
+  }
+  lines(x=rep(limits$lower[name_id], 2), y=c(-1, 10), lwd=2, lty=2)
+  lines(x=rep(limits$upper[name_id], 2), y=c(-1, 10), lwd=2, lty=2)
+  legend(x="topright", legend=reslist$info$name, col=colors, pch=colors, inset = c(-0.14, 0), xpd=TRUE)
+}
+for (ens in reslist$info$name) {
+  # print(paste0("lowerlatticeunits", ens))
+limits[[paste0("lowerlatticeunits", ens)]] <- round(limits$lower/reslist$info$afm[reslist$info$name==ens]/fmtogev)
+limits[[paste0("upperlatticeunits", ens)]] <- round(limits$upper/reslist$info$afm[reslist$info$name==ens]/fmtogev)
+}
+# limits
+write.table(limits, "proposeboundaries.csv", row.names=F)
+```
+## Continuum limit
+
+With the masses and lattice spacings, we can take the (naive) continuum limit.
+This does not contain any systematic uncertainties or volume effects (yet).
+This calculation does not really make sense for the pion.
+
+```{r contlimit}
+fnlin <- function(par, x, boot.r=1, ...) par[1] + par[2] * x
+contlimlist <- list(name=c(), fitres=c())
+index <- 1
+summary <- data.frame(name=c(), mass=c())
+for (name in c("Ds", "D", "eta", "K", "pi")) {
+  x <- reslist$info$afm
+  # print(x)
+  y <- sapply(X=reslist[[name]], FUN=getElement, name="effmassfit")
+  y <- unlist(y["t0", ])[seq(1, 9, 2)] / x / fmtogev
+  # print(y)
+  ybs <- sapply(X=reslist[[name]], FUN=getElement, name="massfit.tsboot")[1:300, ] / t(array(rep(x * fmtogev, 300), dim=c(6, 300)))
+  # print(ybstmp[[1]][, 1])
+  # ybs <- array(NA, dim=c(300, 5))
+  # for( index in 1:5) {
+  #   print(length(ybstmp[[index]][, 1]))
+  #   ybs[, index] <- ybstmp[[index]][, 1]
+  # }
+  # ybs <- ybs / t(array(rep(x * fmtogev, 300), dim=c(5, 300)))
+  # print(t(array(rep(x, 300), dim=c(4, 300))))
+  fitres <- try(bootstrap.nlsfit(fn=fnlin, par.guess=c(1, 1), y=y, x=x^2, bsamples=ybs))
+  if (!inherits(x = fitres, what = "try-error")) {
+    plot(fitres, xlab="a^2[fm^2]", ylab="mgev",
+         main=paste("Continuum limit", name), plot.range=c(0, 0.007),
+         ylim=c(min(fitres$t0[1], fitres$y), max(fitres$t0[1], fitres$y)),
+         xlim=c(0, 0.007))
+    plotwitherror(x=0, y=fitres$t0[1], dy=fitres$se[1],
+                  col="red", rep=TRUE)
+    try(lines(x=c(-1, 2), y=rep(massPDGplot$massgev[massPDGplot$name==name], 2), lty=2))
+    contlimlist$name[index] <- name
+    contlimlist$fitres[index] <- fitres
+    newline <- data.frame(name=name, mass = tex.catwitherror(x=c(fitres$t0[1], fitres$se[1]), digits=2, with.dollar=FALSE, with.cdot=FALSE))
+    summary <- rbind(summary, newline)
+  } else {
+    plotwitherror(x, y, apply(ybs, 2, sd), main=name)
+  }
+  index <- index+1
+}
+saveRDS(object=contlimlist, file="contlimmesonmasses.RDS")
+```
+
+
+As a comparison, here are the values from the PDG and the calculted continuum limits:
+```{r}
+knitr::kable(massPDG)
+knitr::kable(summary)
+```
+## Volume dependence
+
+We also plot the result from the B-ensemble as a function of the lattice volume.
+
+```{r volume}
+summary <- data.frame(name=c(), mass=c())
+for (name in c("Ds", "D", "eta", "K", "pi")) {
+  x <- reslist$info$L
+  afm <- reslist$info$afm
+  # print(x)
+  y <- sapply(X=reslist[[name]], FUN=getElement, name="effmassfit")
+  y <- unlist(y["t0", ])[seq(1, 9, 2)] / afm / fmtogev
+  # print(y)
+  ybs <- sapply(X=reslist[[name]], FUN=getElement, name="massfit.tsboot")[1:300, ] / t(array(rep(afm * fmtogev, 300), dim=c(6, 300)))
+  y <- y[reslist$info$B_ens]
+  x <- x[reslist$info$B_ens]
+  ybs <- ybs[, reslist$info$B_ens]
+  dy <- apply(ybs, 2, sd)
+  # print(ybstmp[[1]][, 1])
+  # ybs <- array(NA, dim=c(300, 5))
+  # for( index in 1:5) {
+  #   print(length(ybstmp[[index]][, 1]))
+  #   ybs[, index] <- ybstmp[[index]][, 1]
+  # }
+  # ybs <- ybs / t(array(rep(x * fmtogev, 300), dim=c(5, 300)))
+  # print(t(array(rep(x, 300), dim=c(4, 300))))
+  # fitres <- try(bootstrap.nlsfit(fn=fnlin, par.guess=c(1, 1), y=y, x=x^2, bsamples=ybs))
+  # if (!inherits(x = fitres, what = "try-error")) {
+  #   plot(fitres, xlab="a^2[fm^2]", ylab="mgev",
+  #        main=paste("Continuum limit", name), plot.range=c(0, 0.007),
+  #        ylim=c(min(fitres$t0[1], fitres$y), max(fitres$t0[1], fitres$y)),
+  #        xlim=c(0, 0.007))
+  #   plotwitherror(x=0, y=fitres$t0[1], dy=fitres$se[1],
+  #                 col="red", rep=TRUE)
+  #   try(lines(x=c(-1, 2), y=rep(massPDGplot$massgev[massPDGplot$name==name], 2), lty=2))
+  #   contlimlist$name[index] <- name
+  #   contlimlist$fitres[index] <- fitres
+  #   newline <- data.frame(name=name, mass = tex.catwitherror(x=c(fitres$t0[1], fitres$se[1]), digits=2, with.dollar=FALSE, with.cdot=FALSE))
+  #   summary <- rbind(summary, newline)
+  # } else {
+    plotwitherror(1/x, y, dy, main=name, ylab="m [GeV]", xlab="1/L", xaxt="n")
+    axis(side=1, at=1/c(48, 64, 96), label=c("1/48", "1/64", "1/96"))
+  # }
+  index <- index+1
+}
+saveRDS(object=contlimlist, file="contlimmesonmasses.RDS")
+```
+
+<!-- We also determine the decay constants. For that, we first determine the matrix elements by a matrix fit, and then we determine the decay constant. -->
+
+<!-- Problem: this is only the smeared-smeared matrix element, which gives unphysical results for the decay constant. -->
+
+<!-- Can we do a GEVP with only two observables? -->
+<!-- Alternative: get the smeared-smeared and local-smeared matrix elements. -->
+
+<!-- From the sl Matrixfit, we will receive $\sqrt{A_{l}A_{s}}$, from the ss, we get $A_{s}$. -->
+<!-- From that, we can calculate the local matrix element by calculating $\frac{\sqrt{A_{l}A_{s}}^2}{A_{s}^2} \cdot A_s = \frac{A_l}{A_s} \cdot A_s=A_l=\frac{\sqrt{A_{l}A_{s}}^2}{A_{s}}$ -->
+
+<!-- ```{r decayconstantmatrixfit} -->
+
+<!-- index <- 1 -->
+<!-- cf0pi <- c() -->
+<!-- tsbootpi <- array(NA, dim=c(300, 4)) -->
+<!-- as <- c() -->
+<!-- for (ens in unique(tab$ensemble)) { -->
+<!-- # for (ens in c("cB211.07.64")) { -->
+<!--   as[index] <- ensinfos$afm[ensinfos$ens==ens] -->
+<!--   mus <- data.frame(name=c("Ds", "D", "eta", "K", "pi"), name_sl=c("Ds_sl", "D_sl", "eta_sl", "K_sl", "pi_sl"),  -->
+<!--                     quarkcontent=c("cs", "cd", "ss", "sd", "dd"),  -->
+<!--                     mu1=c(ensinfos$amu_c[ensinfos$ens==ens], ensinfos$amu_c[ensinfos$ens==ens], ensinfos$amu_s[ensinfos$ens==ens], -->
+<!--                           ensinfos$amu_s[ensinfos$ens==ens], ensinfos$amu_d[ensinfos$ens==ens]),  -->
+<!--                     mu2=c(ensinfos$amu_s[ensinfos$ens==ens], ensinfos$amu_d[ensinfos$ens==ens], ensinfos$amu_s[ensinfos$ens==ens], -->
+<!--                           ensinfos$amu_d[ensinfos$ens==ens], ensinfos$amu_d[ensinfos$ens==ens])) -->
+<!--   for (i in c(5)) { -->
+<!--     print(ens) -->
+<!--     name <- mus$name[i] -->
+<!--     name_sl <- mus$name_sl[i] -->
+<!--     meson_ss <- readcffrompreprocessed(realfile=sprintf("~/Documents/heavymesons/data/meson/%s/4Pts_meson_data/%s.dat", ens, name)) -->
+<!--     meson_ss <- jackknife.cf(meson_ss) -->
+<!--     meson_mass <- bootstrap.effectivemass(meson_ss) -->
+<!--     meson_mass <- fit.effectivemass(meson_mass,  t1=tab$t1[tab$ensemble==ens & tab$name==name], t2=tab$t2[tab$ensemble==ens & tab$name==name]) -->
+<!--     meson_ss <- matrixfit(cf=meson_ss, t1=tab$t1[tab$ensemble==ens & tab$name==name], t2=tab$t2[tab$ensemble==ens & tab$name==name], -->
+<!--                           parlist=array(c(1,1), dim=c(2,1)), sym.vec=c("cosh"), neg.vec=c(1)) -->
+<!--     meson_sl <- readcffrompreprocessed(realfile=sprintf("~/Documents/heavymesons/data/meson/%s/4Pts_meson_data/%s.dat", ens, name_sl)) -->
+<!--     meson_sl <- jackknife.cf(meson_sl) -->
+<!--     meson_sl <- matrixfit(cf=meson_sl, t1=tab$t1[tab$ensemble==ens & tab$name==name_sl],  -->
+<!--                           t2=tab$t2[tab$ensemble==ens & tab$name==name_sl], -->
+<!--                           parlist=array(c(1,1), dim=c(2,1)), sym.vec=c("cosh"), neg.vec=c(1)) -->
+<!--     A_s <- meson_sl$opt.res$par[1]^2 / meson_ss$opt.res$par[1] -->
+<!--     A_s.tsboot <- meson_sl$opt.tsboot[, 1]^2 / meson_ss$opt.tsboot[, 1] -->
+<!--     fmeson <- (mus$mu1[i] + mus$mu2[i]) * A_s / (sqrt(meson_mass$effmassfit$t0[1]) * sinh(meson_mass$effmassfit$t0[1])) -->
+<!--     fmeson.tsboot <- (mus$mu1[i] + mus$mu2[i]) * A_s.tsboot / (sqrt(meson_mass$massfit.tsboot[, 1]) * sinh(meson_mass$massfit.tsboot[, 1])) -->
+<!--     print("Amplitude") -->
+<!--     print(tex.catwitherror(A_s, sd(A_s.tsboot), digits = 2, with.dollar = F)) -->
+<!--     print("Decay constant") -->
+<!--     print(tex.catwitherror(fmeson, sd(fmeson.tsboot), digits = 2, with.dollar = F)) -->
+
+<!--     print(fmeson / ensinfos$afm[ensinfos$ens==ens] / fmtogev * 1000) -->
+<!--     cf0pi[index] <- fmeson / ensinfos$afm[ensinfos$ens==ens] / fmtogev * 1000 -->
+<!--     tsbootpi[, index] <- fmeson.tsboot / ensinfos$afm[ensinfos$ens==ens] / fmtogev * 1000 -->
+<!--     # meson <- computefps(meson, mu1=mus$mu1[i], mu2=mus$mu2[i], normalisation="new", disprel="continuum") -->
+<!--     # plot(meson) -->
+<!--     # summary(meson) -->
+<!--     # newline <- data.frame(ens=ens, name=name, amass=meson$effmassfit$t0[1], damass=meson$effmassfit$se[1], -->
+<!--     #                       massgev=meson$effmassfit$t0[1] / ensinfos$afm[ensinfos$ens==ens] / fmtogev, -->
+<!--     #                       dmassgev=meson$effmassfit$se[1] / ensinfos$afm[ensinfos$ens==ens] / fmtogev,  -->
+<!--     #                       massmH=meson$effmassfit$t0[1] / Ds$effmassfit$t0[1],  -->
+<!--     #                       minmassmH=min(meson$massfit.tsboot[, 1] / Ds$massfit.tsboot[, 1])) -->
+<!--     # res <- rbind(res, newline) -->
+<!--     # reslistdecay[[name]][[index]] <- meson -->
+<!--   } -->
+<!--   index <- index + 1 -->
+<!-- } -->
+<!-- # respretty <- data.frame(ens=res$ens, name=res$name,  -->
+<!-- #                         amass=apply(X=array(c(res$amass, res$damass), dim=c(length(res$amass), 2)),  -->
+<!-- #                                     FUN=tex.catwitherror, MARGIN=1, with.cdot=FALSE, with.dollar=FALSE, digits=3),  -->
+<!-- #                         massgev=apply(X=array(c(res$massgev, res$dmassgev), dim=c(length(res$massgev), 2)),  -->
+<!-- #                                       FUN=tex.catwitherror, MARGIN=1, with.cdot=FALSE, with.dollar=FALSE, digits=3),  -->
+<!-- #                         massmH=sprintf("%.3f", res$massmH), minmassmH=sprintf("%.3f", res$minmassmH)) -->
+<!-- #  -->
+<!-- #  -->
+<!-- # knitr::kable(respretty) -->
+<!-- # write.table(x=res, file="calculatedmesonmasses.csv", row.names=FALSE) -->
+<!-- # saveRDS(object=reslist, file="calculatedmesonmasses.RDS") -->
+<!-- resfpi <- bootstrap.nlsfit(fn=fnlin, par.guess=c(1, 1), x=as^2, y=cf0pi, bsamples = tsbootpi) -->
+<!-- plot(resfpi, plot.range=c(0, 0.01)) -->
+<!-- print(resfpi$t0[1]) -->
+<!-- ``` -->
+
+
+<!-- GEVP: modify read-in to read two files at once -->
+
+<!-- ```{r} -->
+
+<!-- # After preprocessing the data for the mesons, ... we have the real  -->
+<!-- # and imaginary parts of the correlators in one file each.  -->
+<!-- # We read those into a cf object. -->
+<!-- # the imaginary data need not be given. -->
+
+<!-- readcffrompreprocessedmutliple <- function (realfile, path  = "", imfile="", im=F) { -->
+<!--   ## determine number of measurements -->
+<!--   if(im) stopifnot(length(realfile) == length(imfile)) -->
+<!--   nmeas <- read.table(paste0(path, realfile[1]), nrows=1) -->
+<!--   Time <- nmeas$V2 -->
+<!--   confno <- nmeas$V1 -->
+<!--   rescf <- matrix(NA, ncol=Time*length(realfile), nrow=confno) -->
+<!--   for(i in seq_along(realfile)) { -->
+<!--     nmeastmp <- read.table(paste0(path, realfile[i]), nrows=1) -->
+<!--     Timetmp <- nmeas$V2 -->
+<!--     confnotmp <- nmeas$V1 -->
+<!--     stopifnot(Timetmp == Time || confno == confnotmp) -->
+<!--     dat <- read.table(paste0(path, realfile[i]), skip=1) -->
+<!--     tmp <- matrix(data=dat$V2, nrow=Time, ncol=confno) -->
+<!--     # print(nmeas) -->
+<!--     #~   print(tmp) -->
+<!--     Dm <- dim(tmp) -->
+<!--     rescf[, (Time*(i-1)+1):(Time*i)] <- t(tmp) -->
+<!--   } -->
+<!--   ret <- cf_meta(nrObs = 1, Time =  Time, nrStypes = length(realfile)) -->
+<!--   if (im==F) ret <- cf_orig(ret, cf = rescf) -->
+<!--   if (im==T) { -->
+<!--     stopifnot(file.exists(paste0(path, imfile))) -->
+<!--     rescfim <- matrix(NA, ncol=Time*length(realfile), nrow=confno) -->
+<!--     for(i in seq_along(realfile)) { -->
+<!--       nmeastmp <- read.table(paste0(path, imfile[i]), nrows=1) -->
+<!--       Timetmp <- nmeas$V2 -->
+<!--       confnotmp <- nmeas$V1 -->
+<!--       stopifnot(nmeastmp == nmeas  || Timetmp == Time || confno == confnotmp) -->
+<!--       datim <- read.table(paste0(path, imfile[i]), skip=1) -->
+<!--       tmpim <- matrix(data=datim$V2, nrow=Time, ncol=confno) -->
+<!--       # print(nmeas) -->
+<!--       #~   print(tmp) -->
+<!--       Dm <- dim(tmpim) -->
+<!--       rescfim[, (Time*i+1):Time*(i+1)] <- t(tmpim) -->
+<!--     } -->
+<!--     ret <- cf_orig(ret, cf = rescf, icf=rescfim) -->
+<!--   } -->
+<!--   ret$conf.index <- confno -->
+<!--   ret <- symmetrise.cf(ret) -->
+
+<!--   return(invisible(ret)) -->
+<!-- } -->
+<!-- ``` -->
+
+<!-- do GEVP -->
+<!-- ```{r decayconstantgevp} -->
+
+<!-- index <- 1 -->
+<!-- for (ens in unique(tab$ensemble)) { -->
+<!-- # for (ens in c("cB211.07.64")) { -->
+<!--   mus <- data.frame(name=c("Ds", "D", "eta", "K", "pi"), name_sl=c("Ds_sl", "D_sl", "eta_sl", "K_sl", "pi_sl"),  -->
+<!--                     quarkcontent=c("cs", "cd", "ss", "sd", "dd"),  -->
+<!--                     mu1=c(ensinfos$amu_c[ensinfos$ens==ens], ensinfos$amu_c[ensinfos$ens==ens], ensinfos$amu_s[ensinfos$ens==ens], -->
+<!--                           ensinfos$amu_s[ensinfos$ens==ens], ensinfos$amu_d[ensinfos$ens==ens]),  -->
+<!--                     mu2=c(ensinfos$amu_s[ensinfos$ens==ens], ensinfos$amu_d[ensinfos$ens==ens], ensinfos$amu_s[ensinfos$ens==ens], -->
+<!--                           ensinfos$amu_d[ensinfos$ens==ens], ensinfos$amu_d[ensinfos$ens==ens])) -->
+<!--   for (i in c(5)) { -->
+<!--     name <- mus$name[i] -->
+<!--     name_sl <- mus$name_sl[i] -->
+<!--     meson <- readcffrompreprocessedmutliple(realfile=c(sprintf("~/Documents/heavymesons/data/meson/%s/4Pts_meson_data/%s.dat",  -->
+<!--                                                                ens, name), -->
+<!--                                                        sprintf("~/Documents/heavymesons/data/meson/%s/4Pts_meson_data/%s.dat",  -->
+<!--                                                                ens, name_sl))) -->
+<!--     meson <- jackknife.cf(meson) -->
+<!--     print(ens) -->
+<!--     # print(meson$cf0) -->
+<!--     gevpres <- bootstrap.gevp(meson, t0=10, sort.type="values") -->
+<!--     groundstate <- gevp2cf(gevpres, id=1) -->
+<!--     gevp.effmass <- bootstrap.effectivemass(groundstate, type="solve") -->
+<!--     gevp.effmassfit <- fit.effectivemass(cf=gevp.effmass, t1=tab$t1[tab$ensemble==ens & tab$name==name],  -->
+<!--                                          t2=tab$t2[tab$ensemble==ens & tab$name==name]) -->
+<!--     gevp.amplitude <- gevp2amplitude(gevpres, mass=gevp.effmassfit, id=1, type="cosh", t1=tab$t1[tab$ensemble==ens & tab$name==name],  -->
+<!--                                          t2=tab$t2[tab$ensemble==ens & tab$name==name]) -->
+<!--     gevpamplitudefps <- computefps(mfit=gevp.amplitude, mu1=mus$mu1[i], mu2=mus$mu2[i], normalisation="new", disprel="continuum") -->
+<!-- # summary(gevpamplitudefps) -->
+<!-- plot(gevp.amplitude) -->
+<!-- print(gevpamplitudefps$fps) -->
+<!-- print(gevpamplitudefps$fps / ensinfos$afm[ensinfos$ens==ens] / fmtogev * 1000) -->
+<!--     # meson_ss <- readcffrompreprocessed(realfile=sprintf("~/Documents/heavymesons/data/meson/%s/4Pts_meson_data/%s.dat", ens, name)) -->
+<!--     # meson_ss <- jackknife.cf(meson_ss) -->
+<!--     # meson_ss <- matrixfit(cf=meson_ss, t1=tab$t1[tab$ensemble==ens & tab$name==name], t2=tab$t2[tab$ensemble==ens & tab$name==name], -->
+<!--     #                       parlist=array(c(1,1), dim=c(2,1)), sym.vec=c("cosh"), neg.vec=c(1)) -->
+<!--     # meson_sl <- readcffrompreprocessed(realfile=sprintf("~/Documents/heavymesons/data/meson/%s/4Pts_meson_data/%s.dat", ens, name_sl)) -->
+<!--     # meson_sl <- jackknife.cf(meson_sl) -->
+<!--     # meson_sl <- matrixfit(cf=meson_sl, t1=tab$t1[tab$ensemble==ens & tab$name==name_sl],  -->
+<!--     #                       t2=tab$t2[tab$ensemble==ens & tab$name==name_sl], -->
+<!--     #                       parlist=array(c(1,1), dim=c(2,1)), sym.vec=c("cosh"), neg.vec=c(1)) -->
+<!--     # A_s <- meson_sl$opt.res$par[1]^2 / meson_ss$opt.res$par[1] -->
+<!--     # A_s.tsboot <- meson_sl$opt.tsboot[, 1]^2 / meson_ss$opt.tsboot[, 1] -->
+<!--     # meson <- computefps(meson, mu1=mus$mu1[i], mu2=mus$mu2[i], normalisation="new", disprel="continuum") -->
+<!--     # plot(meson) -->
+<!--     # summary(meson) -->
+<!--     # newline <- data.frame(ens=ens, name=name, amass=meson$effmassfit$t0[1], damass=meson$effmassfit$se[1], -->
+<!--     #                       massgev=meson$effmassfit$t0[1] / ensinfos$afm[ensinfos$ens==ens] / fmtogev, -->
+<!--     #                       dmassgev=meson$effmassfit$se[1] / ensinfos$afm[ensinfos$ens==ens] / fmtogev,  -->
+<!--     #                       massmH=meson$effmassfit$t0[1] / Ds$effmassfit$t0[1],  -->
+<!--     #                       minmassmH=min(meson$massfit.tsboot[, 1] / Ds$massfit.tsboot[, 1])) -->
+<!--     # res <- rbind(res, newline) -->
+<!--     reslistdecay[[name]][[index]] <- meson -->
+<!--   } -->
+<!--   index <- index + 1 -->
+<!-- } -->
+<!-- # respretty <- data.frame(ens=res$ens, name=res$name,  -->
+<!-- #                         amass=apply(X=array(c(res$amass, res$damass), dim=c(length(res$amass), 2)),  -->
+<!-- #                                     FUN=tex.catwitherror, MARGIN=1, with.cdot=FALSE, with.dollar=FALSE, digits=3),  -->
+<!-- #                         massgev=apply(X=array(c(res$massgev, res$dmassgev), dim=c(length(res$massgev), 2)),  -->
+<!-- #                                       FUN=tex.catwitherror, MARGIN=1, with.cdot=FALSE, with.dollar=FALSE, digits=3),  -->
+<!-- #                         massmH=sprintf("%.3f", res$massmH), minmassmH=sprintf("%.3f", res$minmassmH)) -->
+<!-- #  -->
+<!-- #  -->
+<!-- # knitr::kable(respretty) -->
+<!-- # write.table(x=res, file="calculatedmesonmasses.csv", row.names=FALSE) -->
+<!-- # saveRDS(object=reslist, file="calculatedmesonmasses.RDS") -->
+<!-- ``` -->
+```{r}
+firsttry <- readRDS("/home/gross/Documents/heavymesons/data/old/data_firsttry/allcombs-P5P5-m1_0-m2_0-r1_0-r2_0-bs500-sym_p1-symmetrise_true.RData")
+
+```
+

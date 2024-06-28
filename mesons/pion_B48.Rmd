@@ -1,0 +1,332 @@
+---
+title: "analyse pion B48"
+author: "Christiane"
+date: "2024-04-25"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library("hadron")
+```
+
+```{r}
+# After preprocessing the data for the mesons, ... we have the real 
+# and imaginary parts of the correlators in one file each. 
+# We read those into a cf object.
+# the imaginary data need not be given.
+
+readcffrompreprocessed <- function (realfile, path  = "", imfile="", im=F) {
+  ## determine number of measurements
+  nmeas <- read.table(paste0(path, realfile), nrows=1)
+  Time <- nmeas$V2
+  confno <- nmeas$V1
+  dat <- read.table(paste0(path, realfile), skip=1)
+  tmp <- matrix(data=dat$V2, nrow=Time, ncol=confno)
+  # print(nmeas)
+  #~   print(tmp)
+  Dm <- dim(tmp)
+  ret <- cf_meta(nrObs = 1, Time =  Time, nrStypes = 1)
+  if (im==F) ret <- cf_orig(ret, cf = t(tmp))
+  if (im==T) {
+    stopifnot(file.exists(paste0(path, imfile)))
+    datim <- read.table(paste0(path, imfile), skip=1)
+    tmpim <- matrix(data=datim$V2, nrow=Time, ncol=confno)
+    ret <- cf_orig(ret, cf = t(tmp), icf=t(tmpim))
+  }
+  ret$conf.index <- confno
+  ret <- symmetrise.cf(ret)
+  
+  return(invisible(ret))
+}
+
+
+## cdf needed for determining mean, intervals with AIC
+cdf <- function(y, means, sds, weights) {
+  num <- sum(weights * pnorm(y, means, sds))
+  den <- sum(weights)
+  return(num / den)
+}
+
+## cdf - quantile, needed for uniroot
+
+AICquantile <- function(y, means, sds, weights, quantile) cdf(y, means, sds, weights) - quantile
+
+## apply requires the argument to be iterated over in first place
+getquantile <- function(means, sds, weights, quantile, interval) {
+  root <- try(uniroot(f = AICquantile, quantile = quantile, means = means, sds = sds,
+                      weights = weights, interval = interval, tol = 1e-12))
+  if (inherits(root, "try-error")) {
+    res <- NA
+  } else {
+    res <- root$root
+  }
+  return(res)
+}
+
+
+## determine effective mass with the Akaike Information Criterion
+deteffmassaic <- function(effmass, start = 1, mindistance = 2, verbose = FALSE) {
+  ## additional parameters for saving, plotting
+  # discard all points which are less than one sigma away from zero or have negative mass
+  effmassall <- effmass
+  for (time in effmass$t.idx) {
+    if(is.na(effmass$effMass[time]) || abs(effmass$effMass[time] / effmass$deffMass[time]) < 1.0 || effmass$effMass[time] < 0) {
+      if(verbose) print(paste("removing timeslice ", time, "due to being too close to zero"))
+      effmass$effMass[time] <- NA
+      effmass$deffMass[time] <- NA
+      effmass$effMass.tsboot[, time] <- rep(NA, effmass$boot.R)
+      effmass$t0[time] <- NA
+      effmass$se[time] <- NA
+      effmass$t[, time] <- rep(NA, effmass$boot.R)
+    }
+  }
+  ntimeslices <- length(effmass$t.idx)
+  ncombs <- 0.5 * (ntimeslices - mindistance - start - 1) * (ntimeslices - mindistance - start)
+  weights <- rep(NA, ncombs)
+  masses <- rep(NA, ncombs)
+  sds <- rep(NA, ncombs)
+  bootstraps <- array(NA, dim = c(effmass$boot.R, ncombs))
+  savefits <- data.frame(index = NA, t1 = NA, t2 = NA,
+                         m = NA, dm = NA, chisqr = NA, p = NA, weight = NA)
+  index <- 1
+  for (t1 in seq(start, ntimeslices - mindistance - 2)) {
+    for (t2 in seq(t1 + mindistance, ntimeslices - 2)) {
+      # cat("i = ", index, " t1 = ", t1, " t2 = ", t2, "\n")
+      tmp <- try(fit.effectivemass(effmass, t1 = t1, t2 = t2, useCov = TRUE))
+      if (!inherits(tmp, "try-error")) {
+        weights[index] <- exp(-0.5 * (tmp$chisqr + 2 - (t2 - t1)))
+        masses[index] <- tmp$effmassfit$t0[1]
+        sds[index] <- tmp$effmassfit$se[1]
+        bootstraps[, index] <- tmp$effmassfit$t[, 1]
+        newline <- data.frame(index = index, t1 = t1, t2 = t2,
+                              m = tmp$effmassfit$t0[1], dm = tmp$effmassfit$se[1],
+                              chisqr = tmp$chisqr, p = tmp$Qval, weight = weights[index])
+        savefits <- rbind(savefits, newline)
+      } else {
+        weights[index] <- 0
+        masses[index] <- 0
+        sds[index] <- 0
+        bootstraps[, index] <- rep(0, effmass$boot.R)
+        cat("there was a problem with t1 = ", t1, ", t2 = ", t2, "\n")
+      }
+      index <- index + 1
+    }
+  }
+  savefits <- savefits[-1, ]
+  
+  # failsafe if no fit succeeds
+  if(length(savefits$index) == 0) return(list(FALSE, FALSE, FALSE, FALSE))
+  
+  savefits$weight <- savefits$weight / sum(savefits$weight)
+  interval <- c(0.9 * min(bootstraps), 1.1 * max(bootstraps))
+  
+  resmass <- uniroot(f = AICquantile, quantile = 0.5, means = masses, sds = sds,
+                     weights = weights, interval = interval, tol = 1e-12)
+  res16 <- uniroot(f = AICquantile, quantile = 0.16, means = masses, sds = sds,
+                   weights = weights, interval = interval, tol = 1e-12)
+  res84 <- uniroot(f = AICquantile, quantile = 0.84, means = masses, sds = sds,
+                   weights = weights, interval = interval, tol = 1e-12)
+  
+  resmasserr <- abs(0.5 * (res84$root - res16$root))
+  
+  bootmass <- apply(X = bootstraps, MARGIN = 1, FUN = getquantile, sds = sds,
+                    weights = weights, quantile = 0.5, interval = interval)
+  boot16 <- apply(X = bootstraps, MARGIN = 1, FUN = getquantile, sds = sds,
+                  weights = weights, quantile = 0.16, interval = interval)
+  boot84 <- apply(X = bootstraps, MARGIN = 1, FUN = getquantile, sds = sds,
+                  weights = weights, quantile = 0.84, interval = interval)
+  
+  bootmean <- mean(bootmass, na.rm = T)
+  booterrstat <- sd(bootmass, na.rm = T)
+  booterrtot <- abs(0.5 * (mean(boot84, na.rm = T) - mean(boot16, na.rm = T)))
+  
+  if (verbose) {
+    print(savefits)
+    print(paste("min = ", cdf(interval[1], means = masses, sds = sds, weights = weights),
+                " max = ", cdf(interval[2], means = masses, sds = sds, weights = weights)))
+    print(data.frame(t0 = resmass$root, setot = resmasserr, mean = bootmean, errstat = booterrstat,
+                     booterrtot = booterrtot, booterrsys = sqrt(booterrtot^2 - booterrstat^2),
+                     bias = resmass$root - bootmean, m16 = mean(boot16), m84 = mean(boot84)))
+  }
+  
+  return(list(effmass = effmassall, savefits = savefits,
+              effmassfit = list(t0 = resmass$root, se = resmasserr, m16 = res16$root, m84 = res84$root),
+              boot = list(m50 = bootmass, m16 = boot16, m84 = boot84, mean = bootmean, errstat = booterrstat, errtot = booterrtot)))
+  
+  
+}
+```
+
+```{r}
+mindistance <- 5
+start <- 5
+boot.R <- 1000
+boot.l <- 5
+afmB48 <- 0.07957 #fm
+amevB48m1 <- 197.3269804/afmB48
+amevB48 <- afmB48/197.3269804
+```
+```{r, eval=T}
+pi_ss <- readcffrompreprocessed(realfile="pi.dat", path="/home/gross/Documents/heavymesons/data/meson/cB211.07.48/4Pts_meson_data/")
+pi_sl <- readcffrompreprocessed(realfile="pi_sl.dat", path="/home/gross/Documents/heavymesons/data/meson/cB211.07.48/4Pts_meson_data/")
+
+pi_ss <- bootstrap.cf(pi_ss, boot.R=boot.R, boot.l=boot.l)
+pi_ss_mass <- bootstrap.effectivemass(pi_ss)
+pi_ss_aic <- deteffmassaic(pi_ss_mass, start=start, mindistance = mindistance)
+pi_sl <- bootstrap.cf(pi_sl, boot.R=boot.R, boot.l=boot.l)
+pi_sl_mass <- bootstrap.effectivemass(pi_sl)
+pi_sl_aic <- deteffmassaic(pi_sl_mass, start=start, mindistance = mindistance)
+
+saveRDS(pi_ss_aic, file="pi_ss_aic_B48.RDS")
+saveRDS(pi_sl_aic, file="pi_sl_aic_B48.RDS")
+saveRDS(pi_ss_mass, file="pi_ss_mass_B48.RDS")
+saveRDS(pi_sl_mass, file="pi_sl_mass_B48.RDS")
+```
+
+## Mass determination
+
+We determine the mass of the pion in the B48 lattice by using the aic procedure on effectivemass-fits.
+
+The masses of the valence quarks was $a\mu_{d}=0.00072$, we have measured the two-point functions of the smeared-smeared and local-smeared correlator. 
+We have used 300 configurations, from 2 different replicas.
+
+We put all replicas together, and draw from their combination.
+This is justified: The autocorrelation for the masses, as determined by the uwerr analysis, for the different time slices is compatible with 0.5 in a majority of cases.
+In the time slices where this is not the case, This seems to be due to fluctuations in the Gamma function.
+
+So we can assume that the samples are not correlated, and combine all replicas.
+
+For the analysis, we draw `r boot.R` bootstrapsamples with a binning size of `r boot.l`.
+
+With the AIC, we determine the statistical error, and the combined error, which includes the systematical error from choosing the plateau region.
+
+We propose all fits starting from a time distance of `r start` lattice units, including at least `r mindistance` points in the fit.
+
+In converting the masses to MeV, we do not take the error of the lattice spacing into account. This will introduce a further systematical error.
+
+We assume the lattice spacing to be `r afmB48` fm, as in the tau decay paper.
+
+```{r}
+pi_ss_aic <- readRDS("pi_ss_aic_B48.RDS")
+pi_sl_aic <- readRDS("pi_sl_aic_B48.RDS")
+pi_ss_mass <- readRDS("pi_ss_mass_B48.RDS")
+pi_sl_mass <- readRDS("pi_sl_mass_B48.RDS")
+afmB48 <- 0.07957 #fm
+amevB48m1 <- 197.3269804/afmB48
+
+res <- data.frame(name=c(), amass=c(), damassstat=c(), damasstot=c())
+
+## smeared-smeared
+plotwitherror(x=pi_ss_mass$t.idx, 
+              y=pi_ss_mass$effMass*amevB48m1, 
+              dy=pi_ss_mass$deffMass*amevB48m1, 
+     xlab="t/a", ylab="m [MeV]", 
+     main="smeared-smeaered pion",
+     ylim=(pi_ss_aic$effmassfit$t0 + c(-1, 1)*3*pi_ss_aic$effmassfit$se)*amevB48m1)
+pcol1 <- col2rgb("red", alpha = TRUE) / 255
+pcol1[4] <- 0.65
+pcol1 <- rgb(red = pcol1[1], green = pcol1[2],
+             blue = pcol1[3], alpha = pcol1[4])
+pcol2 <- col2rgb("blue", alpha = TRUE) / 255
+pcol2[4] <- 0.35
+pcol2 <- rgb(red = pcol2[1], green = pcol2[2],
+            blue = pcol2[3], alpha = pcol2[4])
+polygon(x=c(-100, 200, 200, -100),
+        y=(pi_ss_aic$effmassfit$t0+pi_ss_aic$effmassfit$se*c(-1, -1, 1, 1))*amevB48m1, 
+        col=pcol1, lty = 0, lwd = 0.001, border = pcol1)
+polygon(x=c(-100, 200, 200, -100),
+        y=(pi_ss_aic$effmassfit$t0+sd(pi_ss_aic$boot$m50)*c(-1, -1, 1, 1))*amevB48m1, 
+        col=pcol2, lty = 0, lwd = 0.001, border = pcol2)
+plotwitherror(x=pi_ss_mass$t.idx, y=pi_ss_mass$effMass*amevB48m1, dy=pi_ss_mass$deffMass*amevB48m1, rep=TRUE)
+lines(x=c(-100, 200), y=rep(pi_ss_aic$effmassfit$t0*amevB48m1, 2), lwd=2, lty=2)
+legend(x="topright", legend=c("meas", "comb", "stat"), 
+       fill=c(NA, pcol1, pcol2), border=c(NA, pcol1, pcol2), 
+       pch=c(1, NA, NA), co=c(1, NA, NA))
+
+res <- rbind(res, data.frame(name="smeared-smeared", amass=pi_ss_aic$effmassfit$t0, damassstat=sd(pi_ss_aic$boot$m50), damasscomb=pi_ss_aic$effmassfit$se))
+
+## smeared-local
+plotwitherror(x=pi_sl_mass$t.idx, 
+              y=pi_sl_mass$effMass*amevB48m1, 
+              dy=pi_sl_mass$deffMass*amevB48m1, 
+     xlab="t/a", ylab="m [MeV]", 
+     main="smeared-local pion",
+     ylim=(pi_sl_aic$effmassfit$t0 + c(-1, 1)*3*pi_sl_aic$effmassfit$se)*amevB48m1)
+pcol1 <- col2rgb("red", alpha = TRUE) / 255
+pcol1[4] <- 0.65
+pcol1 <- rgb(red = pcol1[1], green = pcol1[2],
+             blue = pcol1[3], alpha = pcol1[4])
+pcol2 <- col2rgb("blue", alpha = TRUE) / 255
+pcol2[4] <- 0.35
+pcol2 <- rgb(red = pcol2[1], green = pcol2[2],
+            blue = pcol2[3], alpha = pcol2[4])
+polygon(x=c(-100, 200, 200, -100),
+        y=(pi_sl_aic$effmassfit$t0+pi_sl_aic$effmassfit$se*c(-1, -1, 1, 1))*amevB48m1, 
+        col=pcol1, lty = 0, lwd = 0.001, border = pcol1)
+polygon(x=c(-100, 200, 200, -100),
+        y=(pi_sl_aic$effmassfit$t0+sd(pi_sl_aic$boot$m50)*c(-1, -1, 1, 1))*amevB48m1, 
+        col=pcol2, lty = 0, lwd = 0.001, border = pcol2)
+plotwitherror(x=pi_sl_mass$t.idx, y=pi_sl_mass$effMass*amevB48m1, dy=pi_sl_mass$deffMass*amevB48m1, rep=TRUE)
+lines(x=c(-100, 200), y=rep(pi_sl_aic$effmassfit$t0*amevB48m1, 2), lwd=2, lty=2)
+legend(x="topright", legend=c("meas", "comb", "stat"), 
+       fill=c(NA, pcol1, pcol2), border=c(NA, pcol1, pcol2), 
+       pch=c(1, NA, NA), co=c(1, NA, NA))
+
+res <- rbind(res, data.frame(name="smeared-local", amass=pi_sl_aic$effmassfit$t0, damassstat=sd(pi_sl_aic$boot$m50), damasscomb=pi_sl_aic$effmassfit$se))
+
+res$damasssys <- sqrt(res$damasscomb^2-res$damassstat^2)
+res$massmev <- res$amass*amevB48m1
+res$dmassstatmev <- res$damassstat*amevB48m1
+res$dmasscombmev <- res$damasscomb*amevB48m1
+
+res$dmasssysmev <- sqrt(res$dmasscombmev^2-res$dmassstatmev^2)
+knitr::kable((res))
+write.table(x=res, file="resultspiB48.csv", row.names=F)
+```
+```{r}
+res <- read.table("resultspiB48.csv", header=T)
+# res
+afm <- 0.07957
+dafm <- 0.00013
+res$dmasstotmev <- sqrt((dafm/afm)^2+(res$damasscomb/res$amass)^2)*res$massmev 
+res$dmassspacemev <- dafm/afm*res$massmev
+errorsum <- res$dmassspacemev[1] + res$dmassstatmev[1] + res$dmasssysmev[1] 
+# res
+# dafm/afm
+# sqrt((dafm/afm)^2+(res$damasscomb[1]/res$amass[1])^2)
+# sqrt((dafm/afm)^2+(res$damasscomb[1]/res$amass[1])^2)*res$massmev[1]
+# dafm/afm*res$massmev[1]
+# sqrt(((dafm/afm)^2+(res$damasscomb[1]/res$amass[1])^2)*res$massmev[1]^2 - res$dmasscombmev[1]^2)
+```
+
+### Error from error of the lattice spacing:
+
+The B-lattice spacing is given as `r tex.catwitherror(afm, dafm, with.dollar=F, with.cdot=F, digits=2)`, meaning the relative error is `r format(dafm/afm, digits=3)`. 
+
+We divide by the lattice spacing to get the mass in physical units.
+Assuming we can use Gaussian error propagation, the error propagates together with the error from the mass (using the systematical error here) to become a total relative error of `r format(sqrt((dafm/afm)^2+(res$damasscomb[1]/res$amass[1])^2), digits=3)`.
+
+The error from the lattice spacing leads to a further error of `r format((dafm/afm)*res$massmev[1], digits=3)` MeV.
+
+## Combined result
+
+Overall, we have a total result of `r tex.catwitherror(res$massmev[1], res$dmasstotmev[1], with.dollar=F, with.cdot=F, digits=2)`MeV. The errors are statistical (`r format(res$dmassstatmev[1], digits=3)`MeV, `r format((res$dmassstatmev[1]/errorsum)*100, digits=3)`%), systematical from choosing the boundaries of the plateaus (`r format(res$dmasssysmev[1], digits=3)`MeV, `r format((res$dmasssysmev[1]/errorsum)*100, digits=3)`%) and systematical from the error of the lattice spacing (`r format(res$dmassspacemev[1], digits=3)`MeV, `r format((res$dmassspacemev[1]/errorsum)*100, digits=3)`%).
+
+
+<!-- <!-- distribution of the single weights: --> -->
+<!-- ```{r, include=FALSE} -->
+<!-- print("hi") -->
+<!-- pi_ss_aic <- readRDS("pi_ss_aic_B48.RDS") -->
+<!-- hist(log(pi_ss_aic[["savefits"]][["weight"]][pi_ss_aic[["savefits"]][["weight"]]>1e-20]), main = "order of magnitude of weight") -->
+<!-- max(pi_ss_aic[["savefits"]][["weight"]]) -->
+
+<!-- heat <- matrix(NA, nrow=110, ncol=110) -->
+<!-- for(t1 in unique(pi_ss_aic$savefits$t1)) { -->
+<!--   heat[t1, (t1+mindistance):110] <- pi_ss_aic$savefits$weight[pi_ss_aic$savefits$t1==t1] -->
+<!-- } -->
+<!-- heat[heat==0] <- NA -->
+<!-- heatmap(log(heat), na.rm=TRUE, Rowv = NA, Colv = NA) -->
+<!-- ``` -->
+
+

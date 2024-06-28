@@ -1,0 +1,261 @@
+---
+title: "Systematic error from quark mass uncertainty"
+author: "Christiane"
+date: "2024-06-14"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library("hadron")
+```
+
+## Background 
+
+```{r}
+nconfig <- 300
+amus <- 0.01692
+damus <- 0.00031
+amuc <- 0.2368
+damuc <- 0.0036
+amud <- 0.00072
+```
+
+
+We input a fixed quark mass ($a\mu$) for all calculations of the 2 and 4 point functions. However, these masses also have an uncertainty.
+The usual way to quantify this is to do simulations at two different fixed quark masses and then...
+TODO
+
+As a new strategy, we want to try inputing `r nconfig` different quark masses instead of one fixed mass.
+The quark masses are sampled from a normal distribution with mean $a\mu$ and standard deviation $a\Delta \mu$.
+
+Usually, we have one seed for the stochastic sources, which is used to produce all sources for all `r nconfig` configs.
+Here, we have to submit the jobs and input scripts in a different way, so we set a different seed for the stochastic sources for each configuration.
+
+As a first step, we compare the results of fixed quark mass with the results of varying quark mass.
+
+We analyse `r nconfig` configurations of the cB211.072.48 ensemble at physical pion mass, with $a\mu_s=$ `r tex.catwitherror(x=amus, dx=damus, digits=2, with.dollar=F, with.cdot=F)` and $a\mu_c=$ `r tex.catwitherror(x=amuc, dx=damuc, digits=2, with.dollar=F, with.cdot=F)`.
+$a\mu_d$ is kept fixed for both sets of analysis at $a\mu_d=$ `r sprintf("%.5f", amud)`.
+
+We expect the means of the mesons masses and effective masses to be the same, but for the errors to be larger in the case where the quark mass was varied, so for the $D_s$, $D$, $K$ and $\eta_s$. The error should be the same for the pion.
+
+Because we use the same sources for both measurements, we expect the pion to be identical.
+
+Aditionally, we run simulations where we change the quark mass, but it is till the same for all configurations. There we use $a\mu_s=0.019$ and $a\mu_c=0.26$
+
+
+```{r defineinfos}
+# After preprocessing the data for the mesons, ... we have the real 
+# and imaginary parts of the correlators in one file each. 
+# We read those into a cf object.
+# the imaginary data need not be given.
+
+readcffrompreprocessed <- function (realfile, path  = "", imfile="", im=F, sym=T) {
+  ## determine number of measurements
+  nmeas <- read.table(paste0(path, realfile), nrows=1)
+  Time <- nmeas$V2
+  confno <- nmeas$V1
+  dat <- read.table(paste0(path, realfile), skip=1)
+  tmp <- matrix(data=dat$V2, nrow=Time, ncol=confno)
+  # print(nmeas)
+  #~   print(tmp)
+  Dm <- dim(tmp)
+  ret <- cf_meta(nrObs = 1, Time =  Time, nrStypes = 1)
+  if (im==F) ret <- cf_orig(ret, cf = t(tmp))
+  if (im==T) {
+    stopifnot(file.exists(paste0(path, imfile)))
+    datim <- read.table(paste0(path, imfile), skip=1)
+    tmpim <- matrix(data=datim$V2, nrow=Time, ncol=confno)
+    ret <- cf_orig(ret, cf = t(tmp), icf=t(tmpim))
+  }
+  ret$conf.index <- confno
+  if(sym) ret <- symmetrise.cf(ret)
+  
+  return(invisible(ret))
+}
+
+
+tab <- read.table(file="tableboundaries_vary_quark_masses.csv", header=T, sep=",")
+## adjust the boundaries so that they are calculated for the same time slices as in the HLT algorithm
+tab$t1 <- tab$t1 - 1
+tab$t2 <- tab$t2 - 1
+# knitr::kable(tab)
+
+ensinfos <- data.frame(ens=c("cB211.07.48_novariation", 
+                             "cB211.07.48_strange", "cB211.07.48_charm", 
+                             "cB211.07.48_charm_strange"), 
+                       name=c("B48_static", "B48_strange", "B48_charm", "B48_charm_strange"), 
+                       afm=c(0.07957, 0.07957, 0.07957, 0.07957), 
+                       uplim=c(5, 5, 5, 5), lowlim=c(10, 10, 10, 10), 
+                       kappa=c(0.1394265, 0.1394265, 0.1394265, 0.1394265),
+                       amu_d = c(0.00072, 0.00072, 0.00072, 0.00072), 
+                       amu_s = c(0.01692, 0.019, 0.01692, 0.019), 
+                       amu_c = c(0.2368, 0.2368, 0.26, 0.26), 
+                       L=c(48, 48, 48, 48), 
+                       B_ens=c(T, T, T, T))
+numberens <- length(ensinfos$ens)
+fmtogev <- 1/0.197
+knitr::kable(ensinfos)
+
+res <- data.frame(ens=c(), name=c(), amass=c(), damass=c(), massgev=c(), dmassgev=c())
+massPDG <- data.frame(name=c("Ds", "D^0", "D^pm", "eta", "K^0", "K^pm", "pi^0", "pi^pm"), 
+                      massmev=c("1968", "1865", "1870", "--", "497", "494", "135", "140"))
+massPDGplot <- data.frame(name=c("Ds", "D", "K", "pi"), 
+                          massgev=c(1968, 1867.5, 495.5, 137.5)/1000)
+
+reslist <- list(Ds=list(), D=list(), eta=list(), K=list(), pi=list(), 
+                info=data.frame(name=rep(NA, numberens), 
+                                afm=rep(NA, numberens), L=rep(NA, numberens), B_ens=rep(NA, numberens)))
+
+reslistdecay <- list(Ds=list(), D=list(), eta=list(), K=list(), pi=list(), 
+                     info=data.frame(name=rep(NA, numberens), 
+                                     afm=rep(NA, numberens)))
+```
+
+```{r masssingle, eval=T}
+index <- 1
+plot <- T
+normdist <- data.frame(name=c(), ens=c(), time=c(), pcorr=c(), pmass=c())
+# for (ens in c("cB211.07.48")) {
+for (ens in ensinfos$ens) {
+  print(ens)
+  reslist[["info"]]$name[index] <- ensinfos$name[ensinfos$ens==ens]
+  reslist[["info"]]$afm[index] <- ensinfos$afm[ensinfos$ens==ens]
+  reslist[["info"]]$L[index] <- ensinfos$L[ensinfos$ens==ens]
+  reslist[["info"]]$B_ens[index] <- ensinfos$B_ens[ensinfos$ens==ens]
+  for (name in c("Ds", "D", "eta", "K", "pi", "Ds_sl", "D_sl", "eta_sl", "K_sl", "pi_sl")) {
+  # for (name in c("Ds")) {
+    print(name)
+    if(plot) pdf(paste0("plotsnormaldistribution/distribution", ens, name, ".pdf"), title="")
+    # print(system(sprintf("ls ~/Documents/heavymesons/data/meson/%s/4Pts_meson_data/%s.dat", ens, name)))
+    meson <- readcffrompreprocessed(realfile=sprintf("~/Documents/heavymesons/data/meson/%s/4Pts_meson_data/%s.dat", ens, name))
+    datmeff <- t(apply(X=meson$cf, MARGIN=1, FUN=effectivemass.cf, Thalf=meson$Time/2, tmax=meson$Time/2))
+    for(time in seq(1, meson$Time/2)) {
+    newlinenorm <- data.frame(name=name, ens=ens, time=time, 
+                              pcorr=shapiro.test(meson$cf[, time])$p.value, 
+                              pmass=shapiro.test(datmeff[, time])$p.value)
+    normdist <- rbind(normdist, newlinenorm)
+    if(plot) {
+      # qqnorm(meson$cf[, time], main=paste("correlator, time =", time, ", p =", newlinenorm$pcorr))
+      # qqline(meson$cf[, time])
+      qqnorm(datmeff[, time], main=paste("mass, time =", time, ", p =", newlinenorm$pcorr))
+      qqline(datmeff[, time])
+    }
+    }
+    if (plot) dev.off()
+    meson <- bootstrap.cf(meson, boot.R = 1000)
+    # meson <- jackknife.cf(meson)
+    meson <- bootstrap.effectivemass(meson)
+    meson <- fit.effectivemass(meson, t1=tab$t1[tab$ensemble==ens & tab$name==name], t2=tab$t2[tab$ensemble==ens & tab$name==name])
+    # print(paste("fit region", tab$t1[tab$ensemble==ens & tab$name==name], tab$t2[tab$ensemble==ens & tab$name==name],
+                # "chi^2_red", sprintf("%.3f", meson$effmassfit$chisqr/meson$effmassfit$dof)))
+    # plotregion <- na.omit(meson$effMass[ensinfos$lowlim[ensinfos$ens==ens]:(meson$Time/2-ensinfos$uplim[ensinfos$ens==ens])])
+    # plot(meson, xlab="t/a", ylab="ameff",
+    #      ylim=c(min(plotregion), max(plotregion)), main=paste(name, ensinfos$name[ensinfos$ens==ens]))
+    newline <- data.frame(ens=ens, name=name, amass=meson$effmassfit$t0[1], damass=meson$effmassfit$se[1],
+                          massgev=meson$effmassfit$t0[1] / ensinfos$afm[ensinfos$ens==ens] / fmtogev,
+                          dmassgev=meson$effmassfit$se[1] / ensinfos$afm[ensinfos$ens==ens] / fmtogev)
+    res <- rbind(res, newline)
+    reslist[[name]][[index]] <- meson
+  }
+  index <- index + 1
+}
+respretty <- data.frame(ens=res$ens, name=res$name, 
+                        amass=apply(X=array(c(res$amass, res$damass), dim=c(length(res$amass), 2)), 
+                                    FUN=tex.catwitherror, MARGIN=1, with.cdot=FALSE, with.dollar=FALSE, digits=3), 
+                        massgev=apply(X=array(c(res$massgev, res$dmassgev), dim=c(length(res$massgev), 2)), 
+                                      FUN=tex.catwitherror, MARGIN=1, with.cdot=FALSE, with.dollar=FALSE, digits=3))
+
+
+knitr::kable(respretty)
+write.table(x=res, file="calculatedmesonmasses_change_quark_mass.csv", row.names=FALSE)
+saveRDS(object=reslist, file="calculatedmesonmasses_change_quark_mass.RDS")
+# normdist
+
+```
+
+The masses are not in agreement for the $D_s$ and the $\eta_s$, but they are for the other three mesons.
+
+The errors for the $D$ and for the pion are roughly the same. This is expected for the pion, but unexpected for the $D$.
+
+For the $K$, the error increases by roughly 10%, for the $\eta_s$ and the $D_s$ it increases by about 50% and 80% respectively.
+
+It makes sense that these two mesons see the largest increase, because they contain two quarks whose mass are being varied instead of just one.
+
+We see similar effects for the effective mass of every timeslice.
+
+As expected, the pion is identical.
+
+
+```{r masscombined}
+res <- read.table("calculatedmesonmasses_change_quark_mass.csv", header=T)
+reslist <- readRDS("calculatedmesonmasses_change_quark_mass.RDS")
+names <- c("Ds", "D", "eta", "K", "pi", "Ds_sl", "D_sl", "eta_sl", "K_sl", "pi_sl")
+limits <- data.frame(meson=c("Ds", "D", "eta", "K", "pi", "Ds_sl", "D_sl", "eta_sl", "K_sl", "pi_sl"), 
+                     lower=rep(9, 10), 
+                     upper=rep(15, 10),
+                     spread=rep(5, 10))
+limits$spread[c(3, 8)] <- 3
+  par(mai = c(1.02, 0.8, 0.32, 0.8))
+colors <- c(1, 2, 3, 4, 5, 6)
+for (name_id in seq_along(names)) {
+  name <- names[name_id]
+  masses <- c()
+  for (i in seq(1, length(reslist$info$name))) {
+    if(name == "D" || name == "D_sl") {
+      masses <- append(masses, 
+                       reslist[[name]][[i]]$effMass[ensinfos$lowlim[i]:(reslist[[name]][[i]]$Time/2-ensinfos$uplim[i]-20)])
+    } else {
+      masses <- append(masses, 
+                       reslist[[name]][[i]]$effMass[ensinfos$lowlim[i]:(reslist[[name]][[i]]$Time/2-ensinfos$uplim[i])])
+    }
+  }
+  
+  plotwitherror(x=reslist[[name]][[1]]$t.idx, 
+                y=reslist[[name]][[1]]$effMass, 
+                dy=reslist[[name]][[1]]$deffMass, 
+                xlab="t/a", ylab="am_eff ", main=name, col=colors[1], pch=colors[1],
+                xlim=c(10, 48), ylim=range(masses))
+  for (i in seq(2, length(reslist$info$name))) {
+    plotwitherror(x=reslist[[name]][[i]]$t.idx, 
+                  y=reslist[[name]][[i]]$effMass, 
+                  dy=reslist[[name]][[i]]$deffMass, 
+                  pch=colors[i], col=colors[i], rep=TRUE)
+  }
+  lines(x=rep(unique(tab$t1[tab$name==name]), 2), y=c(-10, 100), lwd=2, lty=2)
+  lines(x=rep(unique(tab$t2[tab$name==name]), 2), y=c(-10, 100), lwd=2, lty=2)
+  legend(x="topright", legend=reslist$info$name, col=colors, pch=colors, inset = c(-0.14, 0), xpd=TRUE)
+  print("")
+}
+for (ens in reslist$info$name) {
+  # print(paste0("lowerlatticeunits", ens))
+limits[[paste0("lowerlatticeunits", ens)]] <- round(limits$lower/reslist$info$afm[reslist$info$name==ens]/fmtogev)
+limits[[paste0("upperlatticeunits", ens)]] <- round(limits$upper/reslist$info$afm[reslist$info$name==ens]/fmtogev)
+}
+# limits
+```
+
+```{r}
+
+res <- read.table("calculatedmesonmasses_change_quark_mass.csv", header=T)
+res
+differences <- data.frame(name=c("amus", "amuc"), differencesigmastrange=c((0.019-amus)/damus, 0),
+                          differencerelstrange=c(2*(0.019-amus)/(0.019+amus), 0), 
+                          differencesigmacharm=c(0, (0.26-amuc)/damuc), differencerelcharm=c(0, 2*(0.26-amuc)/(0.26+amuc)))
+for(name in c("Ds", "D", "eta", "K", "pi", "Ds_sl", "D_sl", "eta_sl", "K_sl", "pi_sl")){
+  mask1 <- res$name==name & res$ens=="cB211.07.48_novariation"
+  mask2 <- res$name==name & res$ens=="cB211.07.48_strange"
+  mask3 <- res$name==name & res$ens=="cB211.07.48_charm"
+  newline <- data.frame(name=name, 
+                        differencesigmastrange=(res$amass[mask1]-res$amass[mask2])/(res$damass[mask1]+res$damass[mask2]), 
+                        differencerelstrange=2*(res$amass[mask1]-res$amass[mask2])/(res$amass[mask1]+res$amass[mask2]),
+                        differencesigmacharm=(res$amass[mask1]-res$amass[mask3])/(res$damass[mask1]+res$damass[mask3]), 
+                        differencerelcharm=2*(res$amass[mask1]-res$amass[mask3])/(res$amass[mask1]+res$amass[mask3]))
+  differences <- rbind(differences, newline)
+}
+differences$quarkcontent=c("", "", "cs", "cd", "ss", "ds", "dd", "cs", "cd", "ss", "ds", "dd")
+knitr::kable(differences, digits = 3)
+```
+
