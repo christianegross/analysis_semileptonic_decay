@@ -120,6 +120,7 @@ combinefunctionsaic <- function(xlist, ylist, bsampleslist, functions, masklist,
     wbootstraps <- apply(MARGIN=1, FUN=sum, X=bootstraps*rep(weights, each=length(bootstraps[, 1])))
 
     return(list(fitresults=fitresults, 
+                savefits=savefits,
                 cdfsummary=data.frame(t0 = cdfresmean$root, setot = cdfresmeanerr, 
                     mean = cdfbootmean, errstat = cdfbooterrstat,
                     booterrtot = cdfbooterrtot, booterrsys = sqrt(cdfbooterrtot^2 - cdfbooterrstat^2),
@@ -132,27 +133,30 @@ combinefunctionsaic <- function(xlist, ylist, bsampleslist, functions, masklist,
 
 }
 
-plotlistfits <- function(fitlist, xlim=c(NA), ylim=c(NA), cols=seq(1, length(fitlist)), ...) {
+plotlistfits <- function(fitlist, xlim=c(NA), ylim=c(NA), cols=seq(1, length(fitlist)), 
+                         drawlegend=F, legendargs=list(), legendwide=F, ...) {
     if (is.na(xlim[1])) xlim <- minmax(unlist(sapply(X=fitlist, FUN=getElement, name="x"), use.names=F))
     if (is.na(ylim[1])) ylim <- minmax(unlist(sapply(X=fitlist, FUN=getElement, name="y"), use.names=F))
-    plot(NA, xlim=xlim, ylim=ylim, ...)
-    if (fitlist[[1]]$errormodel == "yerrors") {
-      plotwitherror(x = fitlist[[1]]$x, y = fitlist[[1]]$y,
-            dy = fitlist[[1]]$dy, rep=TRUE, col=cols[1], ...)
-    } else {
-      plotwitherror(x = fitlist[[1]]$x, y = fitlist[[1]]$y,
-            dy = fitlist[[1]]$dy, dx = fitlist[[1]]$dx, rep=TRUE, col=cols[1], ...)
+    if(drawlegend) {
+        xwidth <- xlim[2] - xlim[1]
+        ywidth <- ylim[2] - ylim[1]
+        if(legendwide) ylim[2] <- ylim[2] + 0.1*ywidth
+        if(!legendwide) xlim[2] <- xlim[2] + 0.1*xwidth
     }
+    plot(NA, xlim=xlim, ylim=ylim, ...)
     xseq <- seq(from=xlim[1]*1-0.1*sign(xlim[1]), to=xlim[2]*1+0.1*sign(xlim[2]), length.out=100)
     for (i in seq(1, length(fitlist))) {
-    if (fitlist[[i]]$errormodel == "yerrors") {
-      plotwitherror(x = fitlist[[i]]$x, y = fitlist[[i]]$y,
-            dy = fitlist[[i]]$dy, rep=TRUE, col=cols[i], ...)
-    } else {
-      plotwitherror(x = fitlist[[i]]$x, y = fitlist[[i]]$y,
-            dy = fitlist[[i]]$dy, dx = fitlist[[i]]$dx, rep=TRUE, col=cols[i], ...)
-    }
+        if (fitlist[[i]]$errormodel == "yerrors") {
+          plotwitherror(x = fitlist[[i]]$x, y = fitlist[[i]]$y,
+                dy = fitlist[[i]]$dy, rep=TRUE, col=cols[i], ...)
+        } else {
+          plotwitherror(x = fitlist[[i]]$x, y = fitlist[[i]]$y,
+                dy = fitlist[[i]]$dy, dx = fitlist[[i]]$dx, rep=TRUE, col=cols[i], ...)
+        }
+        
         lines(x=xseq, y=fitlist[[i]]$fn(par=fitlist[[i]]$t0, x=xseq, boot.R=0), col=cols[i])
+        plotwitherror(x=0, y=fitlist[[i]]$t0[1], dy=fitlist[[i]]$se[1], col=cols[i], lwd=2, rep=T)
+        if(drawlegend) do.call(what="legend", args=legendargs)
     }
 
 }

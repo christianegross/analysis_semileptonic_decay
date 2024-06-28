@@ -338,3 +338,31 @@ plot_stability_AA0_sets <- function(pathlist, nset=1, neps=17, nnorm=3, inputfil
         }
     }
 }
+
+
+plotZsets <- function(pathlist, main="", mode="DG", iz=0, comments="") {
+    if(mode=="DG") stopifnot(0<=iz && iz<=2)
+    if(mode=="DM") stopifnot(0<=iz && iz<=3)
+    mycolours <- c("red", "blue", "green", "cyan", "pink", "#D2691E", "#556B2F", rep("black", 100))
+    if(mode!="DG" && mode!="DM") stop("invalid mode, must be DM or DG")
+    for(i in seq_along(pathlist)) {
+        if(mode=="DG") filename <- sprintf("%s/Z.dat", pathlist[i])
+        if(mode=="DM") filename <- sprintf("%s/EM_Z.dat", pathlist[i])
+        Z <- try(read.table(filename, fill=TRUE,
+                        col.names=c("m", "dm", "iset", "w", "iz", "t", "z", "dz",
+                        paste0("column", 9:16))))
+        if(i==1) {
+            plotwitherror(x=Z$t[Z$iz==iz], y=Z$z[Z$iz==iz], dy=Z$dz[Z$iz==iz],
+                            log="y", col=mycolours[i], pch=i,
+                            ylim=c(min(Z$z[Z$z > 0]), max(Z$z)), 
+                            xlab="t/a", ylab="Z", main=main)
+        } else {
+            plotwitherror(x=Z$t[Z$iz==iz], y=Z$z[Z$iz==iz], dy=Z$dz[Z$iz==iz],
+                            col=mycolours[i], pch=i, rep=T)
+        }
+    }
+    legend(x="bottomleft",
+        col=mycolours[seq_along(pathlist)],
+        pch=seq_along(pathlist),
+        legend=comments, border=NA)
+}
