@@ -16,6 +16,24 @@ library("hadron")
 zlist <- c(3, 0, 1, 2)
 errlist <- c("stat")
 sumup <-FALSE
+
+draw_ellipse_general <- function(meanx, meany, radx, rady, phi=pi/4,
+                         points=10000, verbose=FALSE, 
+                         nstd=1, rectangle=FALSE, 
+                         bars=FALSE, ...) {
+  t <- seq(0, 2*pi, len=points) 
+  xpoints <- (radx*cos(t)*cos(phi) - rady*sin(t)*sin(phi))* nstd
+  ypoints <- (radx*cos(t)*sin(phi) + rady*sin(t)*cos(phi)) * nstd
+#~   xpoints <- (ell_rad_x*cos(t)*cos(phi)*sdx - ell_rad_y*sdy*sin(t)*sin(phi)) * nstd
+#~   ypoints <- (ell_rad_x*cos(t)*sin(phi)*sdx + ell_rad_y*sdy*sin(t)*cos(phi)) * nstd
+  
+  ## plot shifted ellipsis, point with errors, rectangle made up of errors
+  plotwitherror(x=meanx + xpoints, meany + ypoints, ...)
+}
+
+```
+
+```{r}
 nconfig <- 300
 amus <- 0.01692
 damus <- 0.00031
@@ -43,7 +61,23 @@ We have two methods:
 
 All five sets of measurements have the same sources, and were done on the cB211.072.48 ensemble with tsink=48 and tj=36.
 
-Bootstrap samples are available, but to test the method, everything is calculaated with the mean value only.
+Bootstrap samples are available, but to test the method, everything is calculated with the mean value only.
+
+
+## available data
+
+```{r}
+plot(x=c(1, 1, 2, 2), y=c(1, 2, 1, 2), xaxt="n", yaxt="n", xlab="m_strange", ylab="m_charm", xlim=c(0.75, 3), ylim=c(0.5, 2.5))
+axis(side=1, at=c(1, 2), label=c("0.01692", "0.019"))
+axis(side=2, at=c(1, 2), label=c("0.2368", "0.26"))
+arrows(x0=1, x1=1, y0=1, y1=2, col="red")
+arrows(x0=1, x1=2, y0=1, y1=1, col="red")
+arrows(x0=2, x1=2, y0=1, y1=2, col="blue")
+arrows(x0=1, x1=2, y0=2, y1=2, col="blue")
+draw_ellipse_general(meanx=1, meany=1, radx=damus/(amus-amusst), rady=damuc/(amuc-amucch), phi=0, rep=TRUE, cex=0.1, col="green")
+legend(x="topright", legend=c("measurement", "slope_low", "slope_high", "varied"),
+       col=c(1, 2, 4, 3), pch=c(1, NA, NA, NA), lty=c(NA, 1, 1, 1))
+```
 
 ## Calculating the additional error
 
@@ -65,19 +99,6 @@ $\sigma_{tot}^2=\sigma_{va}^2=\sigma_{un}^2+\sigma_{quark}^2$
 
 $\sigma_{quark} = \sqrt{\sigma_{va}^2-\sigma_{un}^2}$
 
-## available data
-
-```{r}
-plot(x=c(1, 1, 2, 2), y=c(1, 2, 1, 2), xaxt="n", yaxt="n", xlab="m_strange", ylab="m_charm", xlim=c(0.75, 3), ylim=c(0.5, 2.5))
-axis(side=1, at=c(1, 2), label=c("0.01692", "0.019"))
-axis(side=2, at=c(1, 2), label=c("0.2368", "0.26"))
-arrows(x0=1, x1=1, y0=1, y1=2, col="red")
-arrows(x0=1, x1=2, y0=1, y1=1, col="red")
-arrows(x0=2, x1=2, y0=1, y1=2, col="blue")
-arrows(x0=1, x1=2, y0=2, y1=2, col="blue")
-legend(x="topright", legend=c("measurement", "slope_low", "slope_high"),
-       col=c(1, 2, 4), pch=c(1, NA, NA), lty=c(NA, 1, 1))
-```
 
 
 
@@ -144,9 +165,10 @@ emqmone$sdsdquarkboot_two = (sqrt((emqmone$sdstboot_two * emqmone$sdsdchboot_two
                              / sqrt(emqmone$sdstboot_two^2 + emqmone$sdchboot_two^2))
 errormesonquarkmassone <- emqmone
 errormesonquarkmassone
+write.table(errormesonquarkmassone, file="errorquarkmassone.csv", col.names=T, row.names=F)
 # knitr::kable(errormesonquarkmassone, digits=5)
 plotwitherror(x=seq(1, 10), y=rep(0, 10), dy=emqmone$dslopestboot_one, 
-              main="slopes strange", xlab="index", ylab="differenceslope strange")
+              main="difference slopes strange", xlab="index", ylab="differenceslope strange")
 plotwitherror(x=seq(1, 10), y=emqmone$slopestboot_two - emqmone$slopestboot_one, dy=emqmone$dslopestboot_two, 
               pch=2, col=2, rep=TRUE)
 legend(x="topright", legend=c("low charm mass", "high charm mass"), col=c(1, 2), pch=c(1, 2))
@@ -166,6 +188,7 @@ dat <- dat[dat$ens=="cB211.07.48_novariation", ]
 stopifnot(dat$name == datvar$name)
 errormesonquarkmasstwo <- data.frame(name=dat$name, mean=dat$amass, sd=dat$damass, sdvar=datvar$damass, sdquark=sqrt(datvar$damass^2-dat$damass^2))
 knitr::kable(errormesonquarkmasstwo, digits=5)
+write.table(errormesonquarkmasstwo, file="errorquarkmassone.csv", col.names=T, row.names=F)
 ```
 
 
@@ -269,6 +292,8 @@ errordecayquarkmassone$sdsdquarkboot_two = (sqrt((errordecayquarkmassone$sdstboo
                                             / sqrt(errordecayquarkmassone$sdstboot_two^2 + errordecayquarkmassone$sdchboot_two^2))
 # knitr::kable(errordecayquarkmassone, digits=5)
 errordecayquarkmassone
+write.table(x=errordecayquarkmassone, 
+            file = "~/Documents/heavymesons/data/newinput/tables/decayquarkmassdependence_methodone_cd_sigmoid.csv")
 ```
 ```{r}
 for(Z in c(0, 1, 2, 3)) {
@@ -301,6 +326,8 @@ dat <- dat[dat$fitno==1 & dat$errtype=="stat", ]
 stopifnot(dat$th == datvar$th)
 errordecayquarkmasstwo <- data.frame(th=dat$th, Z=dat$iz, mean=dat$DGDq2, sd=dat$dDGDq2, sdvar=datvar$dDGDq2, sdquark=sqrt(datvar$dDGDq2^2-dat$dDGDq2^2))
 knitr::kable(errordecayquarkmasstwo, digits=5)
+write.table(x=errordecayquarkmasstwo, 
+            file = "~/Documents/heavymesons/data/newinput/tables/decayquarkmassdependence_methodtwo_cd_sigmoid.csv")
 ```
 
 
@@ -347,4 +374,50 @@ Again, we see that the second method is unreliable.
 For the decay rate, the error is not enlarged, and so we cannot derive an error estimate coming from the quark masses.
 
 The errors from the two different ways of estimating the slopes are different, suggesting eiher that the dependence on the quark masses is not independent, or that there are some instabilities in the analysis.
+
+## Significance for further analysis
+
+The quark mass dependence of the meson masses is quite strong, and thus the additional error is several times as big as the statistical error.
+
+For the decay rate, there is a trend, however, this only leads to additional errors of around 20% or less of the statistical error.
+We probably will not be able to repeat these measurements for all lattice spacing (estimated cost: >7.5MCh juwels-booster), so we cannot calculate this error after taking the continuum limit.
+
+An analogous analysis of the different decay channel and kernels show that the results for cd, erf and sigmoid are comparable, both less than 20 % of the statistical error with some outliers.
+
+For the cs channel, the two kernels are again similar, however, the errors are larger compared to the statistical error, though most are below 40%.
+
+A simplistic error estimate for the final error: Assume 30% of the statistical error for cd and 50% for cs to be conservative.
+
+A better estimate: repeat this analysis for every smearing $\epsilon$, and see if we see the same magnitude.
+
+At the moment, we only have this analysis for half the momenta, repeating this for the other momenta would cost about 2400 Nodehours on marvin.
+
+Then we could include all momenta, and do a prediction of the error for each momentum.
+
+Here, we calculate the weighted mean and weighted error of the relative error for each channel and kernel.
+
+```{r}
+summary <- data.frame(channel=c(), kernel=c(), relerrlow=c(), drelerrlow=c(), relerrhigh=c(), drelerrhigh=c())
+for (channel in c("cd", "cs")) {
+  for (kernel in c("sigmoid", "erf")) {
+    res <- read.table(file=sprintf("~/Documents/heavymesons/data/newinput/tables/decayquarkmassdependence_methodone_%s_%s.csv", channel, kernel))
+    res$relerrlow <- res$sdquarkboot_one/res$sd
+    res$drelerrlow <- res$sdsdquarkboot_one/res$sd
+    res$relerrhigh <- res$sdquarkboot_two/res$sd
+    res$drelerrhigh <- res$sdsdquarkboot_two/res$sd
+    errlow <- sum(res$relerrlow/res$drelerrlow^2) / sum(1/res$drelerrlow^2)
+    errhigh <- sum(res$relerrhigh/res$drelerrhigh^2) / sum(1/res$drelerrhigh^2)
+    newline <- data.frame(channel=channel, kernel=kernel, 
+                          relerrlow=errlow ,
+                          drelerrlow=sqrt(length(res$sd) / sum(1/res$drelerrlow^2) + 1/length(res$sd) * sum((errlow - res$relerrlow)^2)),
+                          relerrhigh=errhigh ,
+                          drelerrhigh=sqrt(length(res$sd) / sum(1/res$drelerrhigh^2) + 1/length(res$sd) * sum((errhigh - res$relerrhigh)^2)))
+    summary <- rbind(summary, newline)
+    
+  }
+}
+summary
+```
+
+
 
