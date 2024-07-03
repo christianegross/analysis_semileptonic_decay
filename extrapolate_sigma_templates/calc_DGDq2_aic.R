@@ -97,7 +97,7 @@ for (iset in isets) {
 ## TODO: make lists for everything, apply AIC
             DGammalist[[datanumber]] <- unlist(sapply(X=datalist[[datanumber]][[2+iset]][namesel], FUN=getElement, name="DGDq2mean")[1, ], use.names=F)
             dDGammasyslist[[datanumber]] <- unname(unlist(sapply(X=datalist[[datanumber]][[2+iset]][namesel], FUN=getElement, name="sys")[1, ], use.names=F))
-            dDGammalist[[datanumber]] <- sqrt(unlist(sapply(X=datalist[[datanumber]][[2+iset]][namesel], FUN=getElement, name="DGDq2sd")[1, ], use.names=F))
+            dDGammalist[[datanumber]] <- unlist(sapply(X=datalist[[datanumber]][[2+iset]][namesel], FUN=getElement, name="DGDq2sd")[1, ], use.names=F)
             DGammaboot <- sapply(X=datalist[[datanumber]][[2+iset]][namesel], FUN=getElement, name="DGDq2boots")[1, ]
             
             bslist[[datanumber]] <- array(unlist(DGammaboot, use.names=F), dim=c(datalist[[datanumber]][[2+iset]][[namesel[1]]]$bootnumber[[1]], datalist[[datanumber]][[2+iset]]$metadata$neps-epslowlim-epsuplim))
@@ -173,8 +173,8 @@ for (iset in isets) {
 #~             ## extrapolate with systematical error from HLT
             if ("sys" %in% errors) {
             for (datanumber in seq(1, numberfits)) {
-                bootsyslist[[datanumber]] <- t(apply(X=bslist[[datanumber]], MARGIN=1, FUN=increasedistancebootstrap, mean=DGammalist[[datanumber]], 
-                        ratio=sqrt(dDGammalist[[datanumber]]^2 + dDGammasyslist[[datanumber]]^2)/dDGammalist[[datanumber]]))
+                ratio <- sqrt(dDGammalist[[datanumber]]^2 + dDGammasyslist[[datanumber]]^2)/dDGammalist[[datanumber]]
+                bootsyslist[[datanumber]] <- sweep(x=bs, STAT=-ratio, MARGIN=2, FUN='*') + array(rep(DGammalist[[datanumber]]*(1+ratio), each=bsamples), dim=c(bsamples, length(ratio)))
                     }
                         
 #~ #                print(dDGamma_sys/dDGamma)
@@ -222,8 +222,8 @@ for (iset in isets) {
                     stopifnot(datalist[[datanumber]][[2+iset]]$epsilons == volume$epsilons)
                     
     
-                    bootvollist[[datanumber]] <- t(apply(X=bslist[[datanumber]], MARGIN=1, FUN=increasedistancebootstrap, mean=DGammalist[[datanumber]], 
-                            ratio=sqrt(dDGammalist[[datanumber]]^2 + volume$Delta[(epslowlim+1):(datalist[[datanumber]][[2+iset]]$metadata$neps-epsuplim)]^2)/dDGammalist[[datanumber]]))
+                ratio <- sqrt(dDGammalist[[datanumber]]^2 + volume$Delta[(epslowlim+1):(datalist[[datanumber]][[2+iset]]$metadata$neps-epsuplim)]^2)/dDGammalist[[datanumber]]
+                bootvollist[[datanumber]] <- sweep(x=bs, STAT=-ratio, MARGIN=2, FUN='*') + array(rep(DGammalist[[datanumber]]*(1+ratio), each=bsamples), dim=c(bsamples, length(ratio)))
                 }
                     
                 fitresult <- try(combinefunctionsaic(xlist=xlist, y=DGammalist,
@@ -267,9 +267,9 @@ for (iset in isets) {
                 for (datanumber in seq(1, numberfits)) {
                     volume <- finitevolumeall[[datanumber]][finitevolumeall[[datanumber]]$th == th[index] & finitevolumeall[[datanumber]]$iz == iz, ]
                     stopifnot(datalist[[datanumber]][[2+iset]]$epsilons == volume$epsilons)
-    
-                    boottotlist[[datanumber]] <- t(apply(X=bslist[[datanumber]], MARGIN=1, FUN=increasedistancebootstrap, mean=DGammalist[[datanumber]], 
-                            ratio=sqrt(dDGammalist[[datanumber]]^2 + dDGammasyslist[[datanumber]]^2 + volume$Delta[(epslowlim+1):(datalist[[datanumber]][[2+iset]]$metadata$neps-epsuplim)]^2)/dDGammalist[[datanumber]]))
+                    
+                    ratio <- sqrt(dDGammalist[[datanumber]]^2 + dDGammasyslist[[datanumber]]^2 + volume$Delta[(epslowlim+1):(datalist[[datanumber]][[2+iset]]$metadata$neps-epsuplim)]^2)/dDGammalist[[datanumber]]
+                    boottotlist[[datanumber]] <- sweep(x=bs, STAT=-ratio, MARGIN=2, FUN='*') + array(rep(DGammalist[[datanumber]]*(1+ratio), each=bsamples), dim=c(bsamples, length(ratio)))
                 }
                 
                 

@@ -191,7 +191,7 @@ for (iset in isets) {
 
             DGamma <- unlist(sapply(X=data[[2+iset]][namesel], FUN=getElement, name="DGDq2mean")[1, ], use.names=F)
             dDGamma_sys <- unname(unlist(sapply(X=data[[2+iset]][namesel], FUN=getElement, name="sys")[1, ], use.names=F))
-            dDGamma <- sqrt(unlist(sapply(X=data[[2+iset]][namesel], FUN=getElement, name="DGDq2sd")[1, ], use.names=F))
+            dDGamma <- unlist(sapply(X=data[[2+iset]][namesel], FUN=getElement, name="DGDq2sd")[1, ], use.names=F)
             DGammaboot <- sapply(X=data[[2+iset]][namesel], FUN=getElement, name="DGDq2boots")[1, ]
             
             bs <- array(unlist(DGammaboot, use.names=F), dim=c(data[[2+iset]][[namesel[1]]]$bootnumber[[1]], data[[2+iset]]$metadata$neps-epslowlim-epsuplim))
@@ -214,7 +214,7 @@ for (iset in isets) {
                 } else {
                     mymasks[[maxz+1]] <- mymasks[[1]] 
                     for (zmask in seq(2, maxz-1)) {
-                        mymasks[[maskz+1]] <- mymasks[[maxz+1]] & mymasks[[zmask]]
+                        mymasks[[maxz+1]] <- mymasks[[maxz+1]] & mymasks[[zmask]]
                     }
                 }
             }
@@ -222,6 +222,7 @@ for (iset in isets) {
             ## error only from statistics
             if ("stat" %in% errors) {
                 ## extrapolate epsilon to zero
+                
                 
                 fitresult <- try(bootstrap.nlsfit(x=data[[2+iset]]$epsilons[(epslowlim+1):(data[[2+iset]]$metadata$neps-epsuplim)], y=DGamma,
                                     bsamples=bs, fn=fitfn, par.guess=par.guess,
@@ -259,12 +260,8 @@ for (iset in isets) {
 
             ## extrapolate with total error
             if ("sys" %in% errors) {
-#~                 bootsys <- parametric.bootstrap(boot.R=data[[2+iset]][[namesel[1]]]$bootnumber[[1]], 
-#~                         x=rep(0, data[[2+iset]]$metadata$neps-epslowlim-epsuplim), 
-#~                         dx=dDGamma_sys, seed=12345678)
-## bootsample = bootsample - (mean - bootsample) * (errtotmean / bootstat - 1)
-                bootsys <- t(apply(X=bs, MARGIN=1, FUN=increasedistancebootstrap, mean=DGamma, 
-                        ratio=sqrt(dDGamma^2 + dDGamma_sys^2)/dDGamma))
+                ratio <- sqrt(dDGamma^2 + dDGamma_sys^2)/dDGamma
+                bootsys <- sweep(x=bs, STAT=-ratio, MARGIN=2, FUN='*') + array(rep(DGamma*(1+ratio), each=bsamples), dim=c(bsamples, length(ratio)))
                         
 #~                 print(dDGamma_sys/dDGamma)
                 
@@ -304,12 +301,8 @@ for (iset in isets) {
             if ("vol" %in% errors) {
                 stopifnot(data[[2+iset]]$epsilons == volume$epsilons)
                 
-#~                 bootvol <- parametric.bootstrap(boot.R=data[[2+iset]][[namesel[1]]]$bootnumber[[1]], 
-#~                         x=rep(0, data[[2+iset]]$metadata$neps-epslowlim-epsuplim), 
-#~                         dx=volume$Delta[epslowlim:(data[[2+iset]]$metadata$neps-epsuplim)], seed=123456789)
-
-                bootvol <- t(apply(X=bs, MARGIN=1, FUN=increasedistancebootstrap, mean=DGamma, 
-                        ratio=sqrt(dDGamma^2 + volume$Delta[(epslowlim+1):(data[[2+iset]]$metadata$neps-epsuplim)]^2)/dDGamma))
+                ratio <- sqrt(dDGamma^2 + volume$Delta[(epslowlim+1):(data[[2+iset]]$metadata$neps-epsuplim)]^2)/dDGamma
+                bootvol <- sweep(x=bs, STAT=-ratio, MARGIN=2, FUN='*') + array(rep(DGamma*(1+ratio), each=bsamples), dim=c(bsamples, length(ratio)))
                 
                 fitresult <- try(bootstrap.nlsfit(x=data[[2+iset]]$epsilons[(epslowlim+1):(data[[2+iset]]$metadata$neps-epsuplim)], y=DGamma, bsamples=bootvol,
                                     fn=fitfn, par.guess=par.guess, mask=mymasks[[iz+1]]))
@@ -347,8 +340,8 @@ for (iset in isets) {
             if ("tot" %in% errors) {
                 stopifnot(data[[2+iset]]$epsilons == volume$epsilons)
                 
-                boottot <- t(apply(X=bs, MARGIN=1, FUN=increasedistancebootstrap, mean=DGamma, 
-                            ratio=sqrt(dDGamma^2 + dDGamma_sys^2 + volume$Delta[(epslowlim+1):(data[[2+iset]]$metadata$neps-epsuplim)]^2)/dDGamma))
+                ratio <- sqrt(dDGamma^2 + dDGamma_sys^2 + volume$Delta[(epslowlim+1):(data[[2+iset]]$metadata$neps-epsuplim)]^2)/dDGamma
+                boottot <- sweep(x=bs, STAT=-ratio, MARGIN=2, FUN='*') + array(rep(DGamma*(1+ratio), each=bsamples), dim=c(bsamples, length(ratio)))
                 
                 fitresult <- try(bootstrap.nlsfit(x=data[[2+iset]]$epsilons[(epslowlim+1):(data[[2+iset]]$metadata$neps-epsuplim)], y=DGamma, bsamples=boottot,
                                     fn=fitfn, par.guess=par.guess, mask=mymasks[[iz+1]]))
