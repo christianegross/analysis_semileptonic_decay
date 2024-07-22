@@ -84,17 +84,17 @@ tab$t2 <- tab$t2 - 1
 # knitr::kable(tab)
 
 ensinfos <- data.frame(ens=c("cB211.07.48_novariation", 
-                             "cB211.07.48_strange", "cB211.07.48_charm", 
-                             "cB211.07.48_charm_strange"), 
-                       name=c("B48_static", "B48_strange", "B48_charm", "B48_charm_strange"), 
-                       afm=c(0.07957, 0.07957, 0.07957, 0.07957), 
-                       uplim=c(5, 5, 5, 5), lowlim=c(10, 10, 10, 10), 
-                       kappa=c(0.1394265, 0.1394265, 0.1394265, 0.1394265),
-                       amu_d = c(0.00072, 0.00072, 0.00072, 0.00072), 
-                       amu_s = c(0.01692, 0.019, 0.01692, 0.019), 
-                       amu_c = c(0.2368, 0.2368, 0.26, 0.26), 
-                       L=c(48, 48, 48, 48), 
-                       B_ens=c(T, T, T, T))
+                             "cB211.07.48_strange", "cB211.07.48_strange_2",
+                             "cB211.07.48_charm", "cB211.07.48_charm_strange"), 
+                       name=c("B48_static", "B48_strange", "B48_strange_2", "B48_charm", "B48_charm_strange"), 
+                       afm=c(0.07957, 0.07957, 0.07957, 0.07957, 0.07957), 
+                       uplim=c(5, 5, 5, 5, 5), lowlim=c(10, 10, 10, 10, 10), 
+                       kappa=c(0.1394265, 0.1394265, 0.1394265, 0.1394265, 0.1394265),
+                       amu_d = c(0.00072, 0.00072, 0.00072, 0.00072, 0.00072), 
+                       amu_s = c(0.01692, 0.019, 0.016, 0.01692, 0.019), 
+                       amu_c = c(0.2368, 0.2368, 0.2368, 0.26, 0.26), 
+                       L=c(48, 48, 48, 48, 48), 
+                       B_ens=c(T, T, T, T, T))
 numberens <- length(ensinfos$ens)
 fmtogev <- 1/0.197
 knitr::kable(ensinfos)

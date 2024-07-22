@@ -136,7 +136,7 @@ increasedistancebootstrap <- function(sample, mean, ratio) (sample - (mean - sam
 determineDGDq2_all <- function(resultpath, filenames, tsnk, Nt, th,
         nerr, amin, savename, fitfn, par.guess, isets=c(0), comblist=c(0), zlist=c(0, 1, 2, 3),
         epsuplim=0, epslowlim=0, errors=c("stat"), volumetable = "",
-        doplot=TRUE, NDG = 4, maxz=4, bsamples=1000) {
+        doplot=TRUE, NDG = 4, maxz=4, bsamples=1000, neps=-1) {
 
     ## all members of errors have to be one of "stat", "sys", "vol", "tot" and no duplicates
     ## for calculating to we have to calculate sys and vol as well
@@ -156,6 +156,7 @@ determineDGDq2_all <- function(resultpath, filenames, tsnk, Nt, th,
     
     ## and some probable mistakes
     if(NDG!=4 && NDG!=5) print("Are you sure about your value of NDG?")
+    
 
 
     result <- data.frame(tsnk=NA, Nt=NA, w=NA, nerr=NA, iz=NA, icomb=NA, th = NA, DGDq2=NA, dDGDq2=NA, chi=NA, p=NA, errtype=NA)
@@ -182,6 +183,10 @@ for (iset in isets) {
             
             if(!inherits(data, "try-error")) {
             if ("vol" %in% errors || "tot" %in% errors) volume <- finitevolumeall[finitevolumeall$th == th[index] & finitevolumeall$iz == iz, ]
+            
+            ## set number of epsilons: default epslowlim:epsuplim, if neps is given, epslowlim:(epslowlim+neps)
+            stopifnot(data[[2+iset]]$metadata$neps >= epslowlim+neps)
+            if(neps!=-1) epsuplim <- data[[2+iset]]$metadata$neps - (epslowlim+neps)
 
             ## determine which part of data to use, extract needed elements
             namesel <- paste0("id", ((iz)*5 + icomb)*data[[2+iset]]$metadata$neps + (epslowlim:(data[[2+iset]]$metadata$neps-1-epsuplim)), "ieps", epslowlim:(data[[2+iset]]$metadata$neps-1-epsuplim), "icomb", icomb, "iz", iz)
@@ -210,11 +215,11 @@ for (iset in isets) {
             if(iz != maxz-1) mymasks[[iz+1]] <- (AA0 < amin)
             if(iz == maxz-1) {
                 if(is.na(mymasks[[1]][1])) {
-                    mymasks[[maxz+1]] <- seq(epslowlim, data[[2+iset]]$metadata$nnorm - epsuplim)
+                    mymasks[[maxz]] <- seq(epslowlim, data[[2+iset]]$metadata$nnorm - epsuplim)
                 } else {
-                    mymasks[[maxz+1]] <- mymasks[[1]] 
-                    for (zmask in seq(2, maxz-1)) {
-                        mymasks[[maxz+1]] <- mymasks[[maxz+1]] & mymasks[[zmask]]
+                    mymasks[[maxz]] <- mymasks[[1]] 
+                    for (zmask in seq(2, maxz)) {
+                        mymasks[[maxz]] <- mymasks[[maxz]] & mymasks[[zmask]]
                     }
                 }
             }
@@ -223,10 +228,9 @@ for (iset in isets) {
             if ("stat" %in% errors) {
                 ## extrapolate epsilon to zero
                 
-                
                 fitresult <- try(bootstrap.nlsfit(x=data[[2+iset]]$epsilons[(epslowlim+1):(data[[2+iset]]$metadata$neps-epsuplim)], y=DGamma,
                                     bsamples=bs, fn=fitfn, par.guess=par.guess,
-                                    mask=mymasks[[iz+1]], verbose=F))
+                                    mask=mymasks[[iz+1]], verbose=(iz==3)))
                 if(!inherits(fitresult, "try-error")) {
                 if (doplot) try(plot(fitresult, main=paste(title, "only stat"), xlab="epsilon", ylab="DG/Dq2", xlim=c(0, max(fitresult$x))))
                 if (doplot) try(plotwitherror(x=0, y=fitresult$t0[1], dy=fitresult$se[1], rep=TRUE, col="red"))

@@ -23,6 +23,7 @@ damuc <- 0.0036
 amud <- 0.00072
 amusnew <- 0.019
 amusst <- amusnew
+amusnew2 <- 0.016
 ```
 
 
@@ -88,16 +89,17 @@ tab$t2 <- tab$t2 - 1
 
 ensinfos <- data.frame(ens=c("cB211.07.48_novariation", 
                              "cB211.07.48_strange", 
+                             "cB211.07.48_strange_2", 
                              "cB211.07.48_vary"), 
-                       name=c("B48_static", "B48_strange", "B48_vary"), 
-                       afm=c(0.07957, 0.07957, 0.07957), 
-                       uplim=c(5, 5, 5), lowlim=c(10, 10, 10), 
-                       kappa=c(0.1394265, 0.1394265, 0.1394265),
-                       amu_d = c(0.00072, 0.00072, 0.00072), 
-                       amu_s = c(0.01692, 0.019, 0.01692), 
-                       amu_c = c(0.2368, 0.2368, 0.2368), 
-                       L=c(48, 48, 48), 
-                       B_ens=c(T, T, T))
+                       name=c("B48_static", "B48_strange", "B48_strange_2", "B48_vary"), 
+                       afm=c(0.07957, 0.07957, 0.07957, 0.07957), 
+                       uplim=c(5, 5, 5, 5), lowlim=c(10, 10, 10, 10), 
+                       kappa=c(0.1394265, 0.1394265, 0.1394265, 0.1394265),
+                       amu_d = c(0.00072, 0.00072, 0.00072, 0.00072), 
+                       amu_s = c(0.01692, 0.019, 0.016, 0.01692), 
+                       amu_c = c(0.2368, 0.2368, 0.2368, 0.2368), 
+                       L=c(48, 48, 48, 48), 
+                       B_ens=c(T, T, T, T))
 numberens <- length(ensinfos$ens)
 fmtogev <- 1/0.197
 knitr::kable(ensinfos)
@@ -292,6 +294,41 @@ polygon(x=c(xseq, rev(xseq)), y=polyval, col=pcol, lty=0, lwd=0.001, border=pcol
 lines(x=xseq, y=prediction$val, col=1)
 plotwitherror(x=c(amus, amusnew, inputmean), dx=c(0, 0, inputsd), y=res$amass, dy=res$damass, col=c(1, 1, 2), rep=T)
 legend(x="topleft", legend=c("static mass, slope", "varied mass, not considered"), col=c(1, 2), pch=c(1,2))
+```
+
+
+```{r}
+fnlin <- function(par, x, boot.r) par[1]*x + par[2]
+res <- read.table("kaon_change_quark_mass.csv", header=T)
+reslist <- readRDS("kaon_change_quark_mass.RDS")
+inputmasses <- read.table("~/Documents/heavymesons/Inclusive-heavy-decays/cB211.072.48/marvin/different_strange_masses/usedmasses_seed_1234.csv", header=TRUE)
+inputmasses <- inputmasses[1:300, ]
+inputmean <- mean(inputmasses$mus)
+inputsd <- sd(inputmasses$mus)
+
+
+bsamples <- array(NA, dim=c(1000, 3))
+bsamples[, 1] <- reslist$K[[1]]$effmassfit$t[,1]
+bsamples[, 2] <- reslist$K[[2]]$effmassfit$t[,1]
+bsamples[, 3] <- reslist$K[[3]]$effmassfit$t[,1]
+
+fitresults <- bootstrap.nlsfit(fn=fnlin, par.guess=c(1, 1), y=res$amass[1:3], x=c(amus, amusnew, amusnew2), bsamples=bsamples)
+plot(fitresults, col=1, type="l", xlab="amus", ylab="amass",
+     xlim=range(fitresults$x), ylim=range(fitresults$y))
+plotwitherror(x=c(inputmean), dx=c(inputsd), y=res$amass[4], dy=res$damass[4], rep=T, col=c(2))
+legend(x="topleft", legend=c("static mass, slope", "varied mass, not considered"), col=c(1, 2), pch=c(1,2))
+plot(fitresults, col=1, type="l", xlab="amus", ylab="amass",
+     xlim=c(0.0168, 0.017), ylim=c(0.192, 0.193),
+     main="zoomed in")
+plotwitherror(x=c(inputmean), dx=c(inputsd), y=res$amass[4], dy=res$damass[4], rep=T, col=c(2))
+legend(x="topleft", legend=c("static mass, slope", "varied mass, not considered"), col=c(1, 2), pch=c(1,2))
+fitresults
+# 
+# plot(x=xseq, y=prediction$val, col=1, type="l", xlab="amus", ylab="amass", xlim=c(0.0168, 0.017), ylim=c(0.192, 0.1935))
+# polygon(x=c(xseq, rev(xseq)), y=polyval, col=pcol, lty=0, lwd=0.001, border=pcol)
+# lines(x=xseq, y=prediction$val, col=1)
+# plotwitherror(x=c(amus, amusnew, inputmean), dx=c(0, 0, inputsd), y=res$amass, dy=res$damass, col=c(1, 1, 2), rep=T)
+# legend(x="topleft", legend=c("static mass, slope", "varied mass, not considered"), col=c(1, 2), pch=c(1,2))
 ```
 
 We calculate the additional error on the quark masses from the two methods:

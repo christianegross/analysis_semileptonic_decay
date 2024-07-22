@@ -58,7 +58,7 @@ for (th in c(1, 2, 3, 4, 5, 6, 7, 8, 9, 9.5)){
                 x[index] <- tablelist[[index]]$agev[masktable]
             }
             
-            # comvert x from gev to gm 
+            # comvert x from gev to fm 
             x <- x * 0.1973269804
             
             fitresult <- bootstrap.nlsfit(x=x^2, y=y, dy=dy, bsamples=bsamples, fn=fitfn, par.guess=par.guess)
