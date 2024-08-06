@@ -14,7 +14,7 @@ AICquantile <- function(y, means, sds, weights, quantile) cdf(y, means, sds, wei
 ## apply requires the argument to be iterated over in first place
 getquantile <- function(means, sds, weights, quantile, interval) {
     root <- try(uniroot(f = AICquantile, quantile = quantile, means = means, sds = sds,
-        weights = weights, interval = interval, tol = 1e-12))
+        weights = weights, interval = interval, tol = 1e-10))
     if (inherits(root, "try-error")) {
         res <- NA
     } else {
@@ -81,14 +81,16 @@ combinefunctionsaic <- function(xlist, ylist, bsampleslist, functions, masklist,
     
     
     ## determine mean and error as median and 16%/84% quantile of the cdf
-    interval <- c(0.9 * min(bootstraps), 1.1 * max(bootstraps))
+    interval <- c(min(bootstraps), max(bootstraps))
+    difftmp <- interval[2] - interval[1]
+    interval <- c(interval[1] - 2*difftmp, interval[2] + 2*difftmp)
 
     cdfresmean <- uniroot(f = AICquantile, quantile = 0.5, means = means, sds = sds,
-        weights = weights, interval = interval, tol = 1e-12)
+        weights = weights, interval = interval, tol = 1e-10)
     cdfres16 <- uniroot(f = AICquantile, quantile = 0.16, means = means, sds = sds,
-        weights = weights, interval = interval, tol = 1e-12)
+        weights = weights, interval = interval, tol = 1e-10)
     cdfres84 <- uniroot(f = AICquantile, quantile = 0.84, means = means, sds = sds,
-        weights = weights, interval = interval, tol = 1e-12)
+        weights = weights, interval = interval, tol = 1e-10)
 
     cdfresmeanerr <- abs(0.5 * (cdfres84$root - cdfres16$root))
 
@@ -118,6 +120,7 @@ combinefunctionsaic <- function(xlist, ylist, bsampleslist, functions, masklist,
     wmean <- sum(weights*means)
     werr <- sqrt(sum(weights*sds^2) + sum(weights*(means-wmean)^2))
     wbootstraps <- apply(MARGIN=1, FUN=sum, X=bootstraps*rep(weights, each=length(bootstraps[, 1])))
+    
 
     return(list(fitresults=fitresults, 
                 savefits=savefits,

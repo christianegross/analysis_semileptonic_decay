@@ -12,7 +12,7 @@ determineDGDq2_combine_aic <- function(resultpathlist, filenames, tsnk, Nt, th,
         epsuplim=0, epslowlim=0, errors=c("stat"), volumetablelist = c(""),
         doplot=TRUE, NDG = 4, maxz=4, bsamples=1000, numberfits=2, 
         cols=c("blue", "green", "#D2691E", "#556B2F", "cyan", "pink", "red", rep("black", 100)),
-        legendargs=list()) {
+        legendargs=list(), neps=-1) {
 
     ## all members of errors have to be one of "stat", "sys", "vol", "tot" and no duplicates
     ## for calculating tot we have to calculate sys and vol as well
@@ -40,7 +40,7 @@ determineDGDq2_combine_aic <- function(resultpathlist, filenames, tsnk, Nt, th,
     if ("vol" %in% errors || "tot" %in% errors) {
         stopifnot(length(volumetablelist)==numberfits)
         for (i in seq(1, numberfits)) {
-            stopifnot(file.exists(volumetablelist[1]))
+            stopifnot(file.exists(volumetablelist[i]))
     ## read in table with finite volume results
             finitevolumeall[[i]] <- read.table(volumetablelist[i], header=TRUE)
         }
@@ -89,12 +89,14 @@ for (iset in isets) {
             
 
             for (datanumber in seq(1, numberfits)) {
+            ## set number of epsilons: default epslowlim:epsuplim, if neps is given, epslowlim:(epslowlim+neps)
+            stopifnot(datalist[[datanumber]][[2+iset]]$metadata$neps >= epslowlim+neps)
+            if(neps!=-1) epsuplim <- datalist[[datanumber]][[2+iset]]$metadata$neps - (epslowlim+neps)
             ## determine which part of data to use, extract needed elements
             namesel <- paste0("id", ((iz)*5 + icomb)*datalist[[datanumber]][[2+iset]]$metadata$neps + (epslowlim:(datalist[[datanumber]][[2+iset]]$metadata$neps-1-epsuplim)), "ieps", epslowlim:(datalist[[datanumber]][[2+iset]]$metadata$neps-1-epsuplim), "icomb", icomb, "iz", iz)
             title=paste("iset", iset, "iz", iz, "icomb", icomb, "tsnk", tsnk[index], "Nt", Nt[index], "th", th[index], "nerr", nerr[index])
             if(datanumber==1) print(title)
 
-## TODO: make lists for everything, apply AIC
             DGammalist[[datanumber]] <- unlist(sapply(X=datalist[[datanumber]][[2+iset]][namesel], FUN=getElement, name="DGDq2mean")[1, ], use.names=F)
             dDGammasyslist[[datanumber]] <- unname(unlist(sapply(X=datalist[[datanumber]][[2+iset]][namesel], FUN=getElement, name="sys")[1, ], use.names=F))
             dDGammalist[[datanumber]] <- unlist(sapply(X=datalist[[datanumber]][[2+iset]][namesel], FUN=getElement, name="DGDq2sd")[1, ], use.names=F)
@@ -113,9 +115,6 @@ for (iset in isets) {
             AA0 <- apply(X=AA0ar, MARGIN=2, FUN=min)
 
             ## determine masks for fit
-            ## how to do this with lists?
-            ## fix this, indices are wrong!
-#~             print((datanumber-1)*maxz+iz+1)
             if(iz != maxz-1) mymasks[[(datanumber-1)*maxz+iz+1]] <- (AA0 < amin)
             if (iz==maxz-1) {
                 if(is.na(mymasks[[(datanumber-1)*maxz+0+1]][1])) {
@@ -137,10 +136,11 @@ for (iset in isets) {
                                     mask=mymasks[(0:(numberfits-1))*maxz+iz+1], verbose=F))
                 
                 if(!inherits(fitresult, "try-error")) {
-                if (doplot) try(plotlistfits(fitresult$fitresults, main=paste(title, "only stat"), xlab="epsilon", ylab="DG/Dq2", cols=cols, drawlegend=T, legendargs=legendargs))
+                if (doplot) try(plotlistfits(fitresult$fitresults, main=paste(title, "only stat"), xlab="epsilon/m_H", ylab="DG/Dw2", cols=cols, drawlegend=T, legendargs=legendargs, xlim=c(0, max(unlist(xlist)))))
                 if (doplot) try(plotwitherror(x=0, y=fitresult$cdfsummary$t0[1], dy=fitresult$cdfsummary$errstat[1], rep=TRUE, col="red", cex=1, lwd=3))
 
                 ## save result
+                ## save combined result with index -1, all other results with indices starting from 1
                 result <- rbind(result, data.frame(tsnk=tsnk[index], Nt=Nt[index], w=datalist[[datanumber]][[2+iset]]$metadata$w,
                                             nerr=nerr[index], iz=iz, icomb=icomb, th=th[index], DGDq2=fitresult$cdfsummary$t0[1], dDGDq2=fitresult$cdfsummary$errstat[1],
                                             errtype = "stat", fitno=-1))
@@ -164,7 +164,7 @@ for (iset in isets) {
 
                 } else {
                     result <- rbind(result, data.frame(tsnk=tsnk[index], Nt=Nt[index], w=datalist[[datanumber]][[2+iset]]$metadata$w, nerr=nerr[index],
-                                            iz=iz, icomb=icomb, th=th[index], DGDq2=NA, dDGDq2=NA, chi=NA, p=NA, errtype=NA))
+                                            iz=iz, icomb=icomb, th=th[index], DGDq2=NA, dDGDq2=NA, errtype=NA, fitno=NA))
                     fitlist[[4*parindex-3]] <- NA
                 }
             } else fitlist[[4*parindex-3]] <- NA
@@ -174,7 +174,7 @@ for (iset in isets) {
             if ("sys" %in% errors) {
             for (datanumber in seq(1, numberfits)) {
                 ratio <- sqrt(dDGammalist[[datanumber]]^2 + dDGammasyslist[[datanumber]]^2)/dDGammalist[[datanumber]]
-                bootsyslist[[datanumber]] <- sweep(x=bs, STAT=-ratio, MARGIN=2, FUN='*') + array(rep(DGammalist[[datanumber]]*(1+ratio), each=bsamples), dim=c(bsamples, length(ratio)))
+                bootsyslist[[datanumber]] <- sweep(x=bslist[[datanumber]], STAT=-ratio, MARGIN=2, FUN='*') + array(rep(DGammalist[[datanumber]]*(1+ratio), each=bsamples), dim=c(bsamples, length(ratio)))
                     }
                         
 #~ #                print(dDGamma_sys/dDGamma)
@@ -184,7 +184,7 @@ for (iset in isets) {
                                     mask=mymasks[(0:(numberfits-1))*maxz+iz+1], verbose=F))
                 if(!inherits(fitresult, "try-error")) {
 
-                if (doplot) try(plotlistfits(fitresult$fitresults, main=paste(title, "stat + sys"), xlab="epsilon", ylab="DG/Dq2", cols=cols, drawlegend=T, legendargs=legendargs))
+                if (doplot) try(plotlistfits(fitresult$fitresults, main=paste(title, "stat + sys"), xlab="epsilon/m_H", ylab="DG/Dw2", cols=cols, drawlegend=T, legendargs=legendargs, xlim=c(0, max(unlist(xlist)))))
                 if (doplot) try(plotwitherror(x=0, y=fitresult$cdfsummary$t0[1], dy=fitresult$cdfsummary$errstat[1], rep=TRUE, col="red", cex=1, lwd=3))
                 result <- rbind(result, data.frame(tsnk=tsnk[index], Nt=Nt[index], w=datalist[[datanumber]][[2+iset]]$metadata$w,
                                             nerr=nerr[index], iz=iz, icomb=icomb, th=th[index], DGDq2=fitresult$cdfsummary$t0[1], dDGDq2=fitresult$cdfsummary$errstat[1],
@@ -208,8 +208,8 @@ for (iset in isets) {
 
                 } else {
                     result <- rbind(result, data.frame(tsnk=tsnk[index], Nt=Nt[index], w=datalist[[datanumber]][[2+iset]]$metadata$w,
-                                                nerr=nerr[index], iz=iz, icomb=icomb, th=th[index], DGDq2=NA, dDGDq2=NA, chi=NA, p=NA,
-                                                errtype=NA))
+                                                nerr=nerr[index], iz=iz, icomb=icomb, th=th[index], DGDq2=NA, dDGDq2=NA,
+                                                errtype=NA, fitno=NA))
                     fitlist[[4*parindex-2]] <- NA
                 }
             } else fitlist[[4*parindex-2]] <- NA
@@ -223,7 +223,7 @@ for (iset in isets) {
                     
     
                 ratio <- sqrt(dDGammalist[[datanumber]]^2 + volume$Delta[(epslowlim+1):(datalist[[datanumber]][[2+iset]]$metadata$neps-epsuplim)]^2)/dDGammalist[[datanumber]]
-                bootvollist[[datanumber]] <- sweep(x=bs, STAT=-ratio, MARGIN=2, FUN='*') + array(rep(DGammalist[[datanumber]]*(1+ratio), each=bsamples), dim=c(bsamples, length(ratio)))
+                bootvollist[[datanumber]] <- sweep(x=bslist[[datanumber]], STAT=-ratio, MARGIN=2, FUN='*') + array(rep(DGammalist[[datanumber]]*(1+ratio), each=bsamples), dim=c(bsamples, length(ratio)))
                 }
                     
                 fitresult <- try(combinefunctionsaic(xlist=xlist, y=DGammalist,
@@ -231,7 +231,7 @@ for (iset in isets) {
                                     mask=mymasks[(0:(numberfits-1))*maxz+iz+1], verbose=F))
                 if(!inherits(fitresult, "try-error")) {
 
-                if (doplot) try(plotlistfits(fitresult$fitresults, main=paste(title, "stat + vol"), xlab="epsilon", ylab="DG/Dq2", cols=cols, drawlegend=T, legendargs=legendargs))
+                if (doplot) try(plotlistfits(fitresult$fitresults, main=paste(title, "stat + vol"), xlab="epsilon/m_H", ylab="DG/Dw2", cols=cols, drawlegend=T, legendargs=legendargs, xlim=c(0, max(unlist(xlist)))))
                 if (doplot) try(plotwitherror(x=0, y=fitresult$cdfsummary$t0[1], dy=fitresult$cdfsummary$errstat[1], rep=TRUE, col="red", cex=1, lwd=3))
                 result <- rbind(result, data.frame(tsnk=tsnk[index], Nt=Nt[index], w=datalist[[datanumber]][[2+iset]]$metadata$w,
                                             nerr=nerr[index], iz=iz, icomb=icomb, th=th[index], DGDq2=fitresult$cdfsummary$t0[1], dDGDq2=fitresult$cdfsummary$errstat[1],
@@ -256,8 +256,8 @@ for (iset in isets) {
 
                 } else {
                     result <- rbind(result, data.frame(tsnk=tsnk[index], Nt=Nt[index], w=datalist[[datanumber]][[2+iset]]$metadata$w,
-                                                nerr=nerr[index], iz=iz, icomb=icomb, th=th[index], DGDq2=NA, dDGDq2=NA, chi=NA, p=NA,
-                                                errtype=NA))
+                                                nerr=nerr[index], iz=iz, icomb=icomb, th=th[index], DGDq2=NA, dDGDq2=NA,
+                                                errtype=NA, fitno=NA))
                     fitlist[[4*parindex-2]] <- NA
                 }
             } else fitlist[[4*parindex-1]] <- NA
@@ -269,7 +269,7 @@ for (iset in isets) {
                     stopifnot(datalist[[datanumber]][[2+iset]]$epsilons == volume$epsilons)
                     
                     ratio <- sqrt(dDGammalist[[datanumber]]^2 + dDGammasyslist[[datanumber]]^2 + volume$Delta[(epslowlim+1):(datalist[[datanumber]][[2+iset]]$metadata$neps-epsuplim)]^2)/dDGammalist[[datanumber]]
-                    boottotlist[[datanumber]] <- sweep(x=bs, STAT=-ratio, MARGIN=2, FUN='*') + array(rep(DGammalist[[datanumber]]*(1+ratio), each=bsamples), dim=c(bsamples, length(ratio)))
+                    boottotlist[[datanumber]] <- sweep(x=bslist[[datanumber]], STAT=-ratio, MARGIN=2, FUN='*') + array(rep(DGammalist[[datanumber]]*(1+ratio), each=bsamples), dim=c(bsamples, length(ratio)))
                 }
                 
                 
@@ -278,7 +278,7 @@ for (iset in isets) {
                                     mask=mymasks[(0:(numberfits-1))*maxz+iz+1], verbose=F))
                 if(!inherits(fitresult, "try-error")) {
 
-                if (doplot) try(plotlistfits(fitresult$fitresults, main=paste(title, "stat + vol + sys"), xlab="epsilon", ylab="DG/Dq2", cols=cols, drawlegend=T, legendargs=legendargs))
+                if (doplot) try(plotlistfits(fitresult$fitresults, main=paste(title, "stat + vol + sys"), xlab="epsilon/m_H", ylab="DG/Dw2", cols=cols, drawlegend=T, legendargs=legendargs, xlim=c(0, max(unlist(xlist)))))
                 if (doplot) try(plotwitherror(x=0, y=fitresult$cdfsummary$t0[1], dy=fitresult$cdfsummary$errstat[1], rep=TRUE, col="red", cex=1, lwd=3))
                 result <- rbind(result, data.frame(tsnk=tsnk[index], Nt=Nt[index], w=datalist[[datanumber]][[2+iset]]$metadata$w,
                                             nerr=nerr[index], iz=iz, icomb=icomb, th=th[index], DGDq2=fitresult$cdfsummary$t0[1], dDGDq2=fitresult$cdfsummary$errstat[1],
@@ -304,8 +304,8 @@ for (iset in isets) {
 
                 } else {
                     result <- rbind(result, data.frame(tsnk=tsnk[index], Nt=Nt[index], w=data[[2+iset]]$metadata$w,
-                                                nerr=nerr[index], iz=iz, icomb=icomb, th=th[index], DGDq2=NA, dDGDq2=NA, chi=NA, p=NA,
-                                                errtype=NA))
+                                                nerr=nerr[index], iz=iz, icomb=icomb, th=th[index], DGDq2=NA, dDGDq2=NA,
+                                                errtype=NA, fitno=NA))
                     fitlist[[4*parindex]]            <- NA
                     namefitlist[4*parindex]          <- paste(title, "tot")
                 }
