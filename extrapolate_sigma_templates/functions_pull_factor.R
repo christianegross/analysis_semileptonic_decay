@@ -224,7 +224,7 @@ determinesyserrfinitevolume <- function(resultpath1, filenames1, nerr1, L1, resu
         plot(x=result$epsilon[result$th==th[index]], y=result$P[result$th==th[index]], xlab="epsilon", ylab="P", main=title,
              col=result$iz[result$th==th[index]]+1, type="o")
         lines(x=c(-1, 2), y=rep(0, 2))
-        legend(x="topleft", legend=c(0, 1, 2, 3), col=seq(1, 4), pch=c(1, 4), title="Z")
+        legend(x="topright", legend=c(0, 1, 2, 3), col=seq(1, 4), pch=c(1, 4), title="Z")
       }
     }
   }

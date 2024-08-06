@@ -1,9 +1,9 @@
 parent <- "/hiskp4/gross/heavymesons/data"
 #~ parent <- "~/Documents/heavymesons/data/newinput"
 folders <- c("cB211.07.64", "cB211.07.96", "cC211.06.80", "cD211.054.96", "cE211.044.112", "cB211.07.48_300", "cB211.07.48_400", "cB211.07.64_48_36")
-folders <- c("cB211.07.48_charm", "cB211.07.48_charm_strange")
+folders <- c("cB211.07.64")
 subfolders  <- c("th1", "th2", "th3", "th4", "th5", "th6", "th7", "th8", "th9", "th9.5")
-subfolders  <- c("th2", "th4", "th6", "th8", "th9.5")
+subfolders  <- c("th2_su", "th4_su", "th6_su", "th8_su", "th9.5_su")
 
 infos <- read.table("parameters_input_files.csv", row.names=1, header=TRUE, sep=",", comment.char = "#")
 #~ print(infos)
@@ -12,7 +12,8 @@ names(infos)
 system(sprintf("mkdir -p %s/cd/", parent))
 system(sprintf("mkdir -p %s/cs/", parent))
 
-for(channel in c("cd", "cs")) {
+#~ for(channel in c("cd", "cs")) {
+for(channel in c("su")) {
     for (folder in folders) {
         system(sprintf("mkdir -p %s/%s/%s", parent, channel, folder))
             ensinfos <- infos[folder]
