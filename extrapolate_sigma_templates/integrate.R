@@ -2,12 +2,40 @@
 ## between the supporting points
 ## Order of y, x: can put several bootstrapsamples with common x-coordinates with apply
 ## x: supporting point; y=f(x)=function value
-trapezoidal <- function(yval, xval) {
+trapezoidal <- function(yval, xval, continue=FALSE, higherlimit=0, replacelower=FALSE, lowerlimit=0, replaceindex=0) {
+    stopifnot(!(continue && replacelower))
     stopifnot(length(xval)==length(yval))
-    stopifnot(xval==sort(x=xval) || xval==rev(sort(x=xval)))
+    # stopifnot(xval==sort(x=xval) || xval==rev(sort(x=xval)))
     sum <- 0
-    for(i in seq(1, length(xval)-1)) {
-        sum <- sum + 1/2*(xval[i+1]-xval[i])*(yval[i]+yval[i+1])
+    
+    if(!(continue || replacelower)) {
+        for(i in seq(1, length(xval)-1)) {
+            sum <- sum + 1/2*(xval[i+1]-xval[i])*(yval[i]+yval[i+1])
+        }
+    }
+    if(continue) {
+    ## calculate slope, add end values to xval, yval
+        stopifnot(higherlimit > max(xval))
+        len <- length(xval)
+        slope <- (yval[len] - yval[len-1])/(xval[len] - xval[len-1])
+        higher <- yval[len] + (higherlimit-xval[len]) * slope
+        yval <- append(yval, higher)
+        xval <- append(xval, higherlimit)
+        for(i in seq(1, length(xval)-1)) {
+            sum <- sum + 1/2*(xval[i+1]-xval[i])*(yval[i]+yval[i+1])
+        }
+    }
+    if(replacelower) {
+        stopifnot(replaceindex > 0 && replaceindex <= length(xval))
+        xval <- xval[1:replaceindex]
+        len <- length(xval)
+        slope <- (yval[len] - yval[len-1])/(xval[len] - xval[len-1])
+        higher <- yval[len] + (lowerlimit-xval[len]) * slope
+        xval[replaceindex] <- lowerlimit
+        yval[len] <- higher
+        for(i in seq(1, length(xval)-1)) {
+            sum <- sum + 1/2*(xval[i+1]-xval[i])*(yval[i]+yval[i+1])
+        }
     }
     return(sum)
 }
