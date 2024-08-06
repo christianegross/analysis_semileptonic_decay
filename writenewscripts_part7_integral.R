@@ -35,7 +35,7 @@ cat("```{r setupsummaryintegral, include=FALSE}",
 file=fileDG, append=FALSE, sep="\n")
 
 
-for(kernel in c("sigmoid", "erf")){
+for(kernel in c("sigmoid", "erf", "aic")){
     for(channel in c("cd", "cs")) {
         cat(sprintf("## %s %s\n", channel, kernel),
 sprintf("```{r integral%s%s}", channel, kernel),
