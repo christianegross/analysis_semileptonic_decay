@@ -1,6 +1,8 @@
 library("hadron")
 source("/home/gross/Documents/heavymesons/scripts_christiane/extrapolate_sigma_templates/read_in_binary.R")
 
+#~ source("/hiskp4/gross/heavymesons/helpscripts/read_in_binary.R")
+
 
 
 ## bootsample = bootsample - (mean - bootsample) * (errtotmean / bootstat - 1)
@@ -8,10 +10,10 @@ increasedistancebootstrap <- function(sample, mean, ratio) (sample - (mean - sam
 
 
 ## TODO: different finite volume effects possible
-determineDGDq2_contlim <- function(resultpathlist, filenames, tsnk, Nt, th,
+determineDGDq2_contlim <- function(resultpathlist, filenames, th,
         nerr, amin, savename, fitfn, par.guess, isets=c(0), comblist=c(0), zlist=c(0, 1, 2, 3),
         epsuplim=0, epslowlim=0, errors=c("stat"), volumetablelist = c(""),
-        doplot=TRUE, NDG = 4, maxz=4, bsamples=1000, afm, mdsgev, numberspacings=4, 
+        doplot=TRUE, NDG = 4, maxz=4, bsamples=1000, afm, amds=c(1, 1, 1, 1), dividemass=F, numberspacings=4, 
         cols=c("blue", "green", "#D2691E", "#556B2F", "cyan", "pink", "red", rep("black", 100)),
         legendargs=list(), neps=-1) {
 
@@ -26,12 +28,11 @@ determineDGDq2_contlim <- function(resultpathlist, filenames, tsnk, Nt, th,
     ## detect some errors
     stopifnot(length(unique(errors)) == length(errors))
     stopifnot(length(resultpathlist) == length(afm))
-    stopifnot(length(resultpathlist) == length(mdsgev))
+    stopifnot(length(resultpathlist) == length(amds))
     stopifnot(length(resultpathlist) == numberspacings)
-    stopifnot(length(filenames)/numberspacings == length(tsnk))
-    stopifnot(length(filenames)/numberspacings == length(Nt))
     stopifnot(length(filenames)/numberspacings == length(th))
     stopifnot(length(filenames)/numberspacings == length(nerr))
+    stopifnot(numberspacings == length(amds))
     
     ## and some probable mistakes
     if(NDG!=4 && NDG!=5) print("Are you sure about your value of NDG?")
@@ -45,16 +46,20 @@ determineDGDq2_contlim <- function(resultpathlist, filenames, tsnk, Nt, th,
             finitevolumeall[[i]] <- read.table(volumetablelist[i], header=TRUE)
         }
     }
+    
+    if(!dividemass) amds <- rep(1, numberspacings)
+    if(dividemass) savename <- paste0(savename, "_dividemass")
+    agev <- afm / 0.1973269804 
 
     if(neps==-1) neps=epsuplim-epslowlim
-    result <- data.frame(tsnk=NA, Nt=NA, w=NA, nerr=NA, iz=NA, icomb=NA, th = NA, epsindex=NA, eps=NA, DGDq2=NA, dDGDq2=NA, errtype=NA)
+    result <- data.frame(w=NA, nerr=NA, iz=NA, icomb=NA, th = NA, epsindex=NA, eps=NA, DGDq2=NA, dDGDq2=NA, errtype=NA)
 
-    resultdat <- list(tsnk=c(), Nt=c(), w=c(), nerr=c(), iz=c(), 
+    resultdat <- list(w=c(), nerr=c(), iz=c(), 
     icomb=c(), th=c(), epsindex=c(), eps=c(), errtype = c(), DGDq2 = c(), dDGDq2 = c(), 
-    dat = array(NA, dim=c(bsamples, length(tsnk)*4*length(isets)*length(comblist)*maxz*neps)))
+    dat = array(NA, dim=c(bsamples, length(th)*4*length(isets)*length(comblist)*maxz*neps)))
     
     fitlist <- list()
-    namefitlist <- seq(1, length(tsnk)*4*length(isets)*length(comblist)*maxz*neps)
+    namefitlist <- seq(1, length(th)*4*length(isets)*length(comblist)*maxz*neps)
     
     legendargs[["col"]]=cols[1:numberspacings]
     legendargs[["pch"]]=rep(1, numberspacings)
@@ -96,15 +101,15 @@ for (iset in isets) {
             if(neps!=-1) epsuplim <- datalist[[datanumber]][[2+iset]]$metadata$neps - (epslowlim+neps)
             ## determine which part of data to use, extract needed elements
             namesel <- paste0("id", ((iz)*5 + icomb)*datalist[[datanumber]][[2+iset]]$metadata$neps + eps, "ieps", eps, "icomb", icomb, "iz", iz)
-            title=paste("iset", iset, "iz", iz, "icomb", icomb, "tsnk", tsnk[index], "Nt", Nt[index], "th", th[index], "eps", eps, "nerr", nerr[index])
+            title=paste("iset", iset, "iz", iz, "icomb", icomb, "th", th[index], "eps", eps, "nerr", nerr[index])
             if(datanumber==1) print(title)
 
-            DGamma[datanumber] <- unlist(sapply(X=datalist[[datanumber]][[2+iset]][namesel], FUN=getElement, name="DGDq2mean")[1, ], use.names=F)
-            dDGammasys[datanumber] <- unname(unlist(sapply(X=datalist[[datanumber]][[2+iset]][namesel], FUN=getElement, name="sys")[1, ], use.names=F))
-            dDGamma[datanumber] <- unlist(sapply(X=datalist[[datanumber]][[2+iset]][namesel], FUN=getElement, name="DGDq2sd")[1, ], use.names=F)
+            DGamma[datanumber] <- unlist(sapply(X=datalist[[datanumber]][[2+iset]][namesel], FUN=getElement, name="DGDq2mean")[1, ], use.names=F) * (amds[datanumber]/agev[datanumber])^3
+            dDGammasys[datanumber] <- unname(unlist(sapply(X=datalist[[datanumber]][[2+iset]][namesel], FUN=getElement, name="sys")[1, ], use.names=F)) * (amds[datanumber]/agev[datanumber])^3
+            dDGamma[datanumber] <- unlist(sapply(X=datalist[[datanumber]][[2+iset]][namesel], FUN=getElement, name="DGDq2sd")[1, ], use.names=F) * (amds[datanumber]/agev[datanumber])^3
             DGammaboot <- sapply(X=datalist[[datanumber]][[2+iset]][namesel], FUN=getElement, name="DGDq2boots")[1, ]
             
-            bs[, datanumber] <- array(unlist(DGammaboot, use.names=F), dim=c(datalist[[datanumber]][[2+iset]][[namesel[1]]]$bootnumber[[1]], 1))
+            bs[, datanumber] <- array(unlist(DGammaboot, use.names=F), dim=c(datalist[[datanumber]][[2+iset]][[namesel[1]]]$bootnumber[[1]], 1)) * (amds[datanumber]/agev[datanumber])^3
             xlist[[datanumber]] <- datalist[[datanumber]][[2+iset]]$epsilons[(epslowlim+1):(datalist[[datanumber]][[2+iset]]$metadata$neps-epsuplim)]
             
             ## determine min A/A0_ref
@@ -144,12 +149,10 @@ for (iset in isets) {
 
                 ## save result
                 ## save combined result with index -1
-                result <- rbind(result, data.frame(tsnk=tsnk[index], Nt=Nt[index], w=datalist[[datanumber]][[2+iset]]$metadata$w,
+                result <- rbind(result, data.frame(w=datalist[[datanumber]][[2+iset]]$metadata$w,
                                             nerr=nerr[index], iz=iz, icomb=icomb, th=th[index], epsindex=eps, eps=datalist[[datanumber]][[2+iset]]$epsilons[eps+1], 
                                             DGDq2=fitresult$t0[1], dDGDq2=fitresult$se[1],
                                             errtype = "stat"))
-                resultdat$tsnk[4*parindex-3]       <- tsnk[index]
-                resultdat$Nt[4*parindex-3]         <- Nt[index]
                 resultdat$w[4*parindex-3]          <- datalist[[1]][[2+iset]]$metadata$w
                 resultdat$nerr[4*parindex-3]       <- nerr[index]
                 resultdat$iz[4*parindex-3]         <- iz
@@ -166,7 +169,7 @@ for (iset in isets) {
 
 
                 } else {
-                    result <- rbind(result, data.frame(tsnk=tsnk[index], Nt=Nt[index], w=datalist[[datanumber]][[2+iset]]$metadata$w, nerr=nerr[index],
+                    result <- rbind(result, data.frame(w=datalist[[datanumber]][[2+iset]]$metadata$w, nerr=nerr[index],
                                             iz=iz, icomb=icomb, th=th[index], epsindex=eps, eps=datalist[[datanumber]][[2+iset]]$epsilons[eps+1], DGDq2=NA, dDGDq2=NA, errtype=NA))
                     fitlist[[4*parindex-3]] <- NA
                 }
@@ -192,12 +195,10 @@ for (iset in isets) {
 
                 ## save result
                 ## save combined result with index -1
-                result <- rbind(result, data.frame(tsnk=tsnk[index], Nt=Nt[index], w=datalist[[datanumber]][[2+iset]]$metadata$w,
+                result <- rbind(result, data.frame(w=datalist[[datanumber]][[2+iset]]$metadata$w,
                                             nerr=nerr[index], iz=iz, icomb=icomb, th=th[index], epsindex=eps, eps=datalist[[datanumber]][[2+iset]]$epsilons[eps+1], 
                                             DGDq2=fitresult$t0[1], dDGDq2=fitresult$se[1],
                                             errtype = "sys"))
-                resultdat$tsnk[4*parindex-2]       <- tsnk[index]
-                resultdat$Nt[4*parindex-2]         <- Nt[index]
                 resultdat$w[4*parindex-2]          <- datalist[[1]][[2+iset]]$metadata$w
                 resultdat$nerr[4*parindex-2]       <- nerr[index]
                 resultdat$iz[4*parindex-2]         <- iz
@@ -213,7 +214,7 @@ for (iset in isets) {
                 namefitlist[4*parindex-2]          <- paste(title, "sys")
 
                 } else {
-                    result <- rbind(result, data.frame(tsnk=tsnk[index], Nt=Nt[index], w=datalist[[datanumber]][[2+iset]]$metadata$w, nerr=nerr[index],
+                    result <- rbind(result, data.frame(w=datalist[[datanumber]][[2+iset]]$metadata$w, nerr=nerr[index],
                                             iz=iz, icomb=icomb, th=th[index], epsindex=eps, eps=datalist[[datanumber]][[2+iset]]$epsilons[eps+1], DGDq2=NA, dDGDq2=NA, errtype=NA))
                     fitlist[[4*parindex-2]] <- NA
                 }
@@ -240,12 +241,10 @@ for (iset in isets) {
 
                 ## save result
                 ## save combined result with index -1
-                result <- rbind(result, data.frame(tsnk=tsnk[index], Nt=Nt[index], w=datalist[[datanumber]][[2+iset]]$metadata$w,
+                result <- rbind(result, data.frame(w=datalist[[datanumber]][[2+iset]]$metadata$w,
                                             nerr=nerr[index], iz=iz, icomb=icomb, th=th[index], epsindex=eps, eps=datalist[[datanumber]][[2+iset]]$epsilons[eps+1], 
                                             DGDq2=fitresult$t0[1], dDGDq2=fitresult$se[1],
                                             errtype = "vol"))
-                resultdat$tsnk[4*parindex-1]       <- tsnk[index]
-                resultdat$Nt[4*parindex-1]         <- Nt[index]
                 resultdat$w[4*parindex-1]          <- datalist[[1]][[2+iset]]$metadata$w
                 resultdat$nerr[4*parindex-1]       <- nerr[index]
                 resultdat$iz[4*parindex-1]         <- iz
@@ -262,7 +261,7 @@ for (iset in isets) {
 
 
                 } else {
-                    result <- rbind(result, data.frame(tsnk=tsnk[index], Nt=Nt[index], w=datalist[[datanumber]][[2+iset]]$metadata$w, nerr=nerr[index],
+                    result <- rbind(result, data.frame(w=datalist[[datanumber]][[2+iset]]$metadata$w, nerr=nerr[index],
                                             iz=iz, icomb=icomb, th=th[index], epsindex=eps, eps=datalist[[datanumber]][[2+iset]]$epsilons[eps+1], DGDq2=NA, dDGDq2=NA, errtype=NA))
                     fitlist[[4*parindex-1]] <- NA
                 }
@@ -289,12 +288,10 @@ for (iset in isets) {
 
                 ## save result
                 ## save combined result with index -1
-                result <- rbind(result, data.frame(tsnk=tsnk[index], Nt=Nt[index], w=datalist[[datanumber]][[2+iset]]$metadata$w,
+                result <- rbind(result, data.frame(w=datalist[[datanumber]][[2+iset]]$metadata$w,
                                             nerr=nerr[index], iz=iz, icomb=icomb, th=th[index], epsindex=eps, eps=datalist[[datanumber]][[2+iset]]$epsilons[eps+1], 
                                             DGDq2=fitresult$t0[1], dDGDq2=fitresult$se[1],
-                                            errtype = "vol"))
-                resultdat$tsnk[4*parindex]       <- tsnk[index]
-                resultdat$Nt[4*parindex]         <- Nt[index]
+                                            errtype = "tot"))
                 resultdat$w[4*parindex]          <- datalist[[1]][[2+iset]]$metadata$w
                 resultdat$nerr[4*parindex]       <- nerr[index]
                 resultdat$iz[4*parindex]         <- iz
@@ -312,7 +309,7 @@ for (iset in isets) {
 
 
                 } else {
-                    result <- rbind(result, data.frame(tsnk=tsnk[index], Nt=Nt[index], w=datalist[[datanumber]][[2+iset]]$metadata$w,
+                    result <- rbind(result, data.frame(w=datalist[[datanumber]][[2+iset]]$metadata$w,
                                                 nerr=nerr[index], iz=iz, icomb=icomb, th=th[index], epsindex=eps, eps=datalist[[datanumber]][[2+iset]]$epsilons[eps+1], DGDq2=NA, dDGDq2=NA,
                                                 errtype=NA))
                     fitlist[[4*parindex]]            <- NA
@@ -320,8 +317,6 @@ for (iset in isets) {
                 }
             } else {
                 #we set these elements to NA in the case they are not calculated to ensure all lists are filled completetly
-                resultdat$tsnk[4*parindex]       <- NA
-                resultdat$Nt[4*parindex]         <- NA
                 resultdat$w[4*parindex]          <- NA
                 resultdat$nerr[4*parindex]       <- NA
                 resultdat$iz[4*parindex]         <- NA
@@ -343,8 +338,6 @@ for (iset in isets) {
 
     } else {
                 #we set these elements to NA in the case they are not calculated to ensure all lists are filled completetly
-                resultdat$tsnk[4*parindex]       <- NA
-                resultdat$Nt[4*parindex]         <- NA
                 resultdat$w[4*parindex]          <- NA
                 resultdat$nerr[4*parindex]       <- NA
                 resultdat$iz[4*parindex]         <- NA
