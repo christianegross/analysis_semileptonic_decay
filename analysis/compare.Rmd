@@ -1,0 +1,391 @@
+---
+title: "comparecontlimsandintegrals"
+author: "Christiane"
+date: "2024-08-21"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library("hadron")
+```
+
+I give my results for the (differential) decay rate and the (differential) first lepton energy moment of the $D_s$ meson.
+
+After the HLT analysis, the three limits $V\to \infty$, $a\to 0$ and $\epsilon \to 0$ remain.
+
+First, I compare the results of the differential decay rate and moment after all limits have been taken in the orders $V, a, \epsilon$ and $V, \epsilon, a$. Then the integral over $q^2$ for these is compared, also for both cases.
+
+In the order $V, \epsilon, a$ we can also compare the integral for different lattice spacings. This is done at the end. 
+
+All comparisons are done for the two different kernels erf and sigmoid, and, where applicable, I also show both decay channels $cd$ and $cs$, in which the $c$-quark of the $D_s$ meson decays to a $s$ or $d$ quark respectively.
+
+The third possible decay channel, $su$ is neglected. Preliminary measurements show its contribution is not significant.
+
+All comparisons are done for the different error types:
+
+- stat: only statistical error
+- sys: statistical error and systematic error from the HLT, determined by the difference of the result for different integration norms
+- vol: statistical error and volume error, as determined by a pull factor between the B96 and B64 ensembles.
+- tot: statistical, systematic and volume error
+
+In converting the results from the HLT result to physical units, I have used the prefactor $\frac{48 \pi^3}{m_{D_s}^3}$ for the total decay rate and $\frac{96 \pi^4}{m_{D_s}^3}$ for the lepton energy moment, as given in the DsXlnu notes as of 22. August 2024.
+
+## all limits DG
+
+The differential decay rate is shown below for all possible configurations of channel, kernel and error type. 
+
+Both orders of extrapolations are compatible, the order $V, \epsilon, a$ seems to lead to a larger effect of the volume errors in the final result.
+
+The markers of the order $V, \epsilon, a$ are shifted for better legibility.
+
+
+```{r}
+VAE <- read.table("tables/DG_VAE_epslim_dividemass.csv", header=TRUE)
+
+errtype <- "stat"
+m_Ds <- 1.96835
+conversionfactor <- 1/2/pi
+for(errtype in c("stat", "sys", "vol", "tot")) {
+  for(kernel in c("sigmoid", "erf")) {
+    for(channel in c("cd", "cs")) {
+      VEA <- read.table(sprintf("tables_fnfour_15/DG_VEA_contlim_%s_%s_linear.csv", channel, kernel), header=TRUE)
+      maskVAE <- VAE$errtype==errtype & VAE$channel==channel & VAE$kernel==kernel
+      maskVEA <- VEA$errtype==errtype
+      plotwitherror(x=(VAE$theta[maskVAE]*0.0934516)^2, y=VAE$DGDq2[maskVAE]*conversionfactor, dy=VAE$dDGDq2[maskVAE]*conversionfactor, 
+                    col=VAE$iz[maskVAE]+1, pch=1, xlab="q^2", ylab="24 pi^3 DG/Dq^2", 
+                    main=paste("DG", channel, kernel, "errtype", errtype), 
+                    xlim=c(0, 0.9))
+      plotwitherror(x=VEA$q[maskVEA]^2+0.01, y=VEA$lim[maskVEA], dy=VEA$dlim[maskVEA], 
+                    col=VEA$iz[maskVEA]+1, pch=2, rep=T)
+      legend(x="topright", legend=c("a, eps", "eps, a", paste("Z", 0:3)), col=c(1, 1, 1:4), pch=c(1, 2, rep(3, 4)))
+      
+    }
+  }
+}
+
+```
+
+## all limits DM
+
+
+The differential leptonic energy moment is shown below for all possible configurations of channel, kernel and error type. 
+
+Both orders of extrapolations are compatible, the error are roughly the same size.
+
+The markers of the order $V, \epsilon, a$ are shifted for better legibility.
+
+
+```{r}
+VAE <- read.table("tables/DM_VAE_epslim.csv", header=TRUE)
+
+errtype <- "stat"
+m_Ds <- 1.96835
+conversionfactorVAE <- m_Ds^3
+conversionfactorVEA <- 1/m_Ds^2
+# conversionfactor <- 1
+
+
+for(errtype in c("stat", "sys", "vol", "tot")) {
+  for(kernel in c("sigmoid", "erf")) {
+    for(channel in c("cd", "cs")) {
+      VEA <- read.table(sprintf("tables_fnsix_15/DM_VEA_contlim_%s_%s_linear.csv", channel, kernel), header=TRUE)
+      maskVAE <- VAE$errtype==errtype & VAE$channel==channel & VAE$kernel==kernel
+      maskVEA <- VEA$errtype==errtype
+      plotwitherror(x=(VAE$theta[maskVAE]*0.0934516)^2, y=VAE$DGDq2[maskVAE]*conversionfactorVAE, dy=VAE$dDGDq2[maskVAE]*conversionfactorVAE, 
+                    col=VAE$iz[maskVAE]+1, pch=1, xlab="q^2", ylab="96 pi^4 DM/Dq^2", 
+                    main=paste("DM", channel, kernel, "errtype", errtype), 
+                    xlim=c(0, 0.91))
+      plotwitherror(x=VEA$q[maskVEA]^2+0.01, y=VEA$lim[maskVEA]*conversionfactorVEA, dy=VEA$dlim[maskVEA]*conversionfactorVEA, 
+                    col=VEA$iz[maskVEA]+1, pch=2, rep=T)
+      legend(x="topright", legend=c("a, eps", "eps, a", paste("Z", 0:4)), col=c(1, 1, 1:5), pch=c(1, 2, rep(3, 5)))
+      
+    }
+  }
+}
+
+```
+
+
+## int DG 
+
+The total decay rate is also compatible for both orders of the limits. 
+
+The result for the erf kernel is higher than that for the sigmoid kernel, but all results are compatible.
+
+The results for integration with splines and integration with the trapezoid rule are also compatible.
+
+### from splines
+
+```{r}
+
+V_cs <- 0.975
+V_cd <- 0.221
+V_su <- V_cd
+G_F <- 1.1663788e-5
+m_Ds <- 1.96835
+errlist <- c("stat", "sys", "vol", "tot")
+res <- data.frame(kernel=c(), errtype=c(), epsa = c(), depsa = c(), aeps=c(), daeps=c())
+
+convVAE <- 1/48 /pi^4 *G_F^2
+convVEA <- 1/24 /pi^3 *G_F^2
+
+for(kernel in c("sigmoid", "erf")) {
+  for (errtype in errlist) {
+    intdatacd <- read.table(sprintf("tables_fnfour_15/DG_VEA_cd_%s_int.csv", kernel), header=TRUE)
+    intdatacs <- read.table(sprintf("tables_fnfour_15/DG_VEA_cs_%s_int.csv", kernel), header=TRUE)
+    # int2 <- read.table("~/Documents/heavymesons/scripts/analysis/tables/DG_VAE_int.csv", header=TRUE)
+    int2 <- read.table("tables/DG_VAE_int_dividemass.csv", header=TRUE)
+    
+    
+    sum1 <- 0
+    dsum1sq <- 0
+    sum2 <- 0
+    dsum2sq <- 0
+    
+    for(iz in 0:2) {
+      sum1 <- sum1 + intdatacd$intspline[intdatacd$iz==iz & intdatacd$errtype==errtype & intdatacd$name=="contlim"] * V_cd^2 * convVEA
+      sum1 <- sum1 + intdatacs$intspline[intdatacs$iz==iz & intdatacs$errtype==errtype & intdatacd$name=="contlim"] * V_cs^2 * convVEA
+      dsum1sq <- dsum1sq + (intdatacd$dintspline[intdatacd$iz==iz & intdatacd$errtype==errtype & intdatacd$name=="contlim"] * V_cd^2 * convVEA)^2
+      dsum1sq <- dsum1sq + (intdatacs$dintspline[intdatacs$iz==iz & intdatacs$errtype==errtype & intdatacd$name=="contlim"] * V_cs^2 * convVEA)^2
+      sum2 <- sum2 + int2$intspline[int2$kernel==kernel & int2$iz==iz & int2$errtype==errtype & int2$channel=="cd"] * V_cd^2 * convVAE
+      sum2 <- sum2 + int2$intspline[int2$kernel==kernel & int2$iz==iz & int2$errtype==errtype & int2$channel=="cs"] * V_cs^2 * convVAE
+      dsum2sq <- dsum2sq + (int2$dintspline[int2$kernel==kernel & int2$iz==iz & int2$errtype==errtype & int2$channel=="cd"] * V_cd^2 * convVAE)^2
+      dsum2sq <- dsum2sq + (int2$dintspline[int2$kernel==kernel & int2$iz==iz & int2$errtype==errtype & int2$channel=="cs"] * V_cs^2 * convVAE)^2
+    }
+    newline <- data.frame(kernel=kernel, errtype=errtype, epsa = sum1, depsa = sqrt(dsum1sq), aeps=sum2, daeps=sqrt(dsum2sq))
+    res <- rbind(res, newline)
+  }
+}
+resDGspline <- res
+plotwitherror(x=1:8, y=res$epsa, dy=res$depsa, col=1, pch=c(rep(1, 4), rep(2, 4)), xlab="", xaxt="n", ylab="Gamma",
+              ylim=c(min(res$epsa-res$depsa, res$aeps-res$daeps), max(res$epsa+res$depsa, res$aeps+res$daeps)), xlim=c(1, 10))
+plotwitherror(x=1:8+0.2, y=res$aeps, dy=res$daeps, col=2, pch=c(rep(1, 4), rep(2, 4)), rep=T)
+legend(x="right", legend=c("a, eps", "eps, a"), col=c(2, 1), pch=c(4, 4))
+axis(side=1, at=1:8, labels=c(paste("sigmoid\n", errlist), paste("erf\n", errlist)), las=2)
+
+```
+
+
+
+
+### from trapezoid
+
+```{r}
+
+V_cs <- 0.975
+V_cd <- 0.221
+V_su <- V_cd
+G_F <- 1.1663788e-5
+m_Ds <- 1.96835
+errlist <- c("stat", "sys", "vol", "tot")
+res <- data.frame(kernel=c(), errtype=c(), epsa = c(), depsa = c(), aeps=c(), daeps=c())
+
+convVAE <- 1/48 /pi^4 *G_F^2
+convVEA <- 1/24 /pi^3 *G_F^2
+
+for(kernel in c("sigmoid", "erf")) {
+  for (errtype in errlist) {
+    intdatacd <- read.table(sprintf("tables_fnfour_15/DG_VEA_cd_%s_int.csv", kernel), header=TRUE)
+    intdatacs <- read.table(sprintf("tables_fnfour_15/DG_VEA_cs_%s_int.csv", kernel), header=TRUE)
+    # int2 <- read.table("~/Documents/heavymesons/scripts/analysis/tables/DG_VAE_int.csv", header=TRUE)
+    int2 <- read.table("tables/DG_VAE_int_dividemass.csv", header=TRUE)
+    
+    
+    sum1 <- 0
+    dsum1sq <- 0
+    sum2 <- 0
+    dsum2sq <- 0
+    
+    for(iz in 0:2) {
+      sum1 <- sum1 + intdatacd$inttrap[intdatacd$iz==iz & intdatacd$errtype==errtype & intdatacd$name=="contlim"] * V_cd^2 * convVEA
+      sum1 <- sum1 + intdatacs$inttrap[intdatacs$iz==iz & intdatacs$errtype==errtype & intdatacd$name=="contlim"] * V_cs^2 * convVEA
+      dsum1sq <- dsum1sq + (intdatacd$dinttrap[intdatacd$iz==iz & intdatacd$errtype==errtype & intdatacd$name=="contlim"] * V_cd^2 * convVEA)^2
+      dsum1sq <- dsum1sq + (intdatacs$dinttrap[intdatacs$iz==iz & intdatacs$errtype==errtype & intdatacd$name=="contlim"] * V_cs^2 * convVEA)^2
+      sum2 <- sum2 + int2$inttrap[int2$kernel==kernel & int2$iz==iz & int2$errtype==errtype & int2$channel=="cd"] * V_cd^2 * convVAE
+      sum2 <- sum2 + int2$inttrap[int2$kernel==kernel & int2$iz==iz & int2$errtype==errtype & int2$channel=="cs"] * V_cs^2 * convVAE
+      dsum2sq <- dsum2sq + (int2$dinttrap[int2$kernel==kernel & int2$iz==iz & int2$errtype==errtype & int2$channel=="cd"] * V_cd^2 * convVAE)^2
+      dsum2sq <- dsum2sq + (int2$dinttrap[int2$kernel==kernel & int2$iz==iz & int2$errtype==errtype & int2$channel=="cs"] * V_cs^2 * convVAE)^2
+    }
+    newline <- data.frame(kernel=kernel, errtype=errtype, epsa = sum1, depsa = sqrt(dsum1sq), aeps=sum2, daeps=sqrt(dsum2sq))
+    res <- rbind(res, newline)
+  }
+}
+resDGtrap <- res
+plotwitherror(x=1:8, y=res$epsa, dy=res$depsa, col=1, pch=c(rep(1, 4), rep(2, 4)), xlab="", xaxt="n", ylab="Gamma",
+              ylim=c(min(res$epsa-res$depsa, res$aeps-res$daeps), max(res$epsa+res$depsa, res$aeps+res$daeps)), xlim=c(1, 10))
+plotwitherror(x=1:8+0.2, y=res$aeps, dy=res$daeps, col=2, pch=c(rep(1, 4), rep(2, 4)), rep=T)
+legend(x="right", legend=c("a, eps", "eps, a"), col=c(2, 1), pch=c(4, 4))
+axis(side=1, at=1:8, labels=c(paste("sigmoid\n", errlist), paste("erf\n", errlist)), las=2)
+
+```
+
+
+
+## int DM 
+
+The total moment is mostly compatible for both orders of the limits, there is some deviation for the result with purely statistical errors and the erf kernel. 
+I do not know where this deviation comes from, all points that enter the integral are comatible.
+
+The result for the erf kernel is lower than that for the sigmoid kernel, but all results are still mostly compatible.
+
+The results for integration with splines and integration with the trapezoid rule are also compatible, and both show the same behaviour for the result with purely statistical errors and the erf kernel. 
+The trapeziodal integration leads to slightly lower results.
+
+### from splines
+
+```{r}
+
+V_cs <- 0.975
+V_cd <- 0.221
+V_su <- V_cd
+G_F <- 1.1663788e-5
+m_Ds <- 1.96835
+errlist <- c("stat", "sys", "vol", "tot")
+res <- data.frame(kernel=c(), errtype=c(), epsa = c(), depsa = c(), aeps=c(), daeps=c())
+
+convVAE <- m_Ds^3/96 /pi^4 *G_F^2
+convVEA <- 1/96 /pi^4 *G_F^2 / m_Ds^2
+
+for(kernel in c("sigmoid", "erf")) {
+  for (errtype in errlist) {
+    intdatacd <- read.table(sprintf("tables_fnfour_15/DM_VEA_cd_%s_int.csv", kernel), header=TRUE)
+    intdatacs <- read.table(sprintf("tables_fnfour_15/DM_VEA_cs_%s_int.csv", kernel), header=TRUE)
+    # int2 <- read.table("~/Documents/heavymesons/scripts/analysis/tables/DG_VAE_int.csv", header=TRUE)
+    int2 <- read.table("tables/DM_VAE_int.csv", header=TRUE)
+    
+    
+    sum1 <- 0
+    dsum1sq <- 0
+    sum2 <- 0
+    dsum2sq <- 0
+    
+    for(iz in 0:2) {
+      sum1 <- sum1 + intdatacd$intspline[intdatacd$iz==iz & intdatacd$errtype==errtype & intdatacd$name=="contlim"] * V_cd^2 * convVEA
+      sum1 <- sum1 + intdatacs$intspline[intdatacs$iz==iz & intdatacs$errtype==errtype & intdatacd$name=="contlim"] * V_cs^2 * convVEA
+      dsum1sq <- dsum1sq + (intdatacd$dintspline[intdatacd$iz==iz & intdatacd$errtype==errtype & intdatacd$name=="contlim"] * V_cd^2 * convVEA)^2
+      dsum1sq <- dsum1sq + (intdatacs$dintspline[intdatacs$iz==iz & intdatacs$errtype==errtype & intdatacd$name=="contlim"] * V_cs^2 * convVEA)^2
+      sum2 <- sum2 + int2$intspline[int2$kernel==kernel & int2$iz==iz & int2$errtype==errtype & int2$channel=="cd"] * V_cd^2 * convVAE
+      sum2 <- sum2 + int2$intspline[int2$kernel==kernel & int2$iz==iz & int2$errtype==errtype & int2$channel=="cs"] * V_cs^2 * convVAE
+      dsum2sq <- dsum2sq + (int2$dintspline[int2$kernel==kernel & int2$iz==iz & int2$errtype==errtype & int2$channel=="cd"] * V_cd^2 * convVAE)^2
+      dsum2sq <- dsum2sq + (int2$dintspline[int2$kernel==kernel & int2$iz==iz & int2$errtype==errtype & int2$channel=="cs"] * V_cs^2 * convVAE)^2
+    }
+    newline <- data.frame(kernel=kernel, errtype=errtype, epsa = sum1, depsa = sqrt(dsum1sq), aeps=sum2, daeps=sqrt(dsum2sq))
+    res <- rbind(res, newline)
+  }
+}
+resDMspline <- res
+plotwitherror(x=1:8, y=res$epsa, dy=res$depsa, col=1, pch=c(rep(1, 4), rep(2, 4)), xlab="", xaxt="n", ylab="<M>",
+              ylim=c(min(res$epsa-res$depsa, res$aeps-res$daeps), max(res$epsa+res$depsa, res$aeps+res$daeps)), xlim=c(1, 10))
+plotwitherror(x=1:8+0.2, y=res$aeps, dy=res$daeps, col=2, pch=c(rep(1, 4), rep(2, 4)), rep=T)
+legend(x="right", legend=c("a, eps", "eps, a"), col=c(2, 1), pch=c(4, 4))
+axis(side=1, at=1:8, labels=c(paste("sigmoid\n", errlist), paste("erf\n", errlist)), las=2)
+
+```
+
+### from trapezoid
+
+```{r}
+
+V_cs <- 0.975
+V_cd <- 0.221
+V_su <- V_cd
+G_F <- 1.1663788e-5
+m_Ds <- 1.96835
+errlist <- c("stat", "sys", "vol", "tot")
+res <- data.frame(kernel=c(), errtype=c(), epsa = c(), depsa = c(), aeps=c(), daeps=c())
+
+convVAE <- m_Ds^3/96 /pi^4 *G_F^2
+convVEA <- 1/96 /pi^4 *G_F^2 / m_Ds^2
+
+for(kernel in c("sigmoid", "erf")) {
+  for (errtype in errlist) {
+    intdatacd <- read.table(sprintf("tables_fnfour_15/DM_VEA_cd_%s_int.csv", kernel), header=TRUE)
+    intdatacs <- read.table(sprintf("tables_fnfour_15/DM_VEA_cs_%s_int.csv", kernel), header=TRUE)
+    # int2 <- read.table("~/Documents/heavymesons/scripts/analysis/tables/DG_VAE_int.csv", header=TRUE)
+    int2 <- read.table("tables/DM_VAE_int.csv", header=TRUE)
+    
+    
+    sum1 <- 0
+    dsum1sq <- 0
+    sum2 <- 0
+    dsum2sq <- 0
+    
+    for(iz in 0:2) {
+      sum1 <- sum1 + intdatacd$inttrap[intdatacd$iz==iz & intdatacd$errtype==errtype & intdatacd$name=="contlim"] * V_cd^2 * convVEA
+      sum1 <- sum1 + intdatacs$inttrap[intdatacs$iz==iz & intdatacs$errtype==errtype & intdatacd$name=="contlim"] * V_cs^2 * convVEA
+      dsum1sq <- dsum1sq + (intdatacd$dinttrap[intdatacd$iz==iz & intdatacd$errtype==errtype & intdatacd$name=="contlim"] * V_cd^2 * convVEA)^2
+      dsum1sq <- dsum1sq + (intdatacs$dinttrap[intdatacs$iz==iz & intdatacs$errtype==errtype & intdatacd$name=="contlim"] * V_cs^2 * convVEA)^2
+      sum2 <- sum2 + int2$inttrap[int2$kernel==kernel & int2$iz==iz & int2$errtype==errtype & int2$channel=="cd"] * V_cd^2 * convVAE
+      sum2 <- sum2 + int2$inttrap[int2$kernel==kernel & int2$iz==iz & int2$errtype==errtype & int2$channel=="cs"] * V_cs^2 * convVAE
+      dsum2sq <- dsum2sq + (int2$dinttrap[int2$kernel==kernel & int2$iz==iz & int2$errtype==errtype & int2$channel=="cd"] * V_cd^2 * convVAE)^2
+      dsum2sq <- dsum2sq + (int2$dinttrap[int2$kernel==kernel & int2$iz==iz & int2$errtype==errtype & int2$channel=="cs"] * V_cs^2 * convVAE)^2
+    }
+    newline <- data.frame(kernel=kernel, errtype=errtype, epsa = sum1, depsa = sqrt(dsum1sq), aeps=sum2, daeps=sqrt(dsum2sq))
+    res <- rbind(res, newline)
+  }
+}
+resDMtrap <- res
+plotwitherror(x=1:8, y=res$epsa, dy=res$depsa, col=1, pch=c(rep(1, 4), rep(2, 4)), xlab="", xaxt="n", ylab="<M>",
+              ylim=c(min(res$epsa-res$depsa, res$aeps-res$daeps), max(res$epsa+res$depsa, res$aeps+res$daeps)), xlim=c(1, 10))
+plotwitherror(x=1:8+0.2, y=res$aeps, dy=res$daeps, col=2, pch=c(rep(1, 4), rep(2, 4)), rep=T)
+legend(x="right", legend=c("a, eps", "eps, a"), col=c(2, 1), pch=c(4, 4))
+axis(side=1, at=1:8, labels=c(paste("sigmoid\n", errlist), paste("erf\n", errlist)), las=2)
+
+```
+
+
+## summary integral different lattice spacings DG
+
+Here, I show the total decay rate for all lattice spacings for all kernels, channels and error types.
+Not all results are compatible with the result in the continuum limit, but we see that the continuum limit is quite flat.
+
+```{r}
+
+names <- c("B64", "C80", "D96", "E112", "contlim")
+for(errtype in c("stat", "sys", "vol", "tot")) {
+  for(kernel in c("sigmoid", "erf")) {
+    for(channel in c("cd", "cs")) {
+      VEA <- read.table(sprintf("tables_fnfour_15/DG_VEA_%s_%s_int.csv", channel, kernel), header=TRUE)
+      VEA
+      mask <- VEA$errtype==errtype
+      plotwitherror(x=VEA$iz[mask]+ 0.1*(VEA$ensno[mask]-1), y=VEA$intspline[mask], dy=VEA$dintspline[mask],
+                    col=VEA$ensno[mask], pch=VEA$ensno[mask], 
+                    main=paste(channel, kernel, "err =", errtype), xlab="Z", ylab="Gamma [a.u.]", 
+                    xlim=c(0, max(VEA$iz+1.5)))
+      legend(legend=names, x="right", col=seq(1, max(VEA$ensno)), pch=seq(1, max(VEA$ensno)))
+      
+    }
+  }
+}
+```
+
+
+## summary integral different lattice spacings DM
+
+Here, I show the total moment for all latitce spacings for all kernels, channels and error types.
+Not all results are compatible with the result in the continuum limit.
+
+The continuum limit is not as flat as it was for the decay rate, but overall it still seems flat, and like we have it under control.
+
+```{r}
+
+names <- c("B64", "C80", "D96", "E112", "contlim")
+for(errtype in c("stat", "sys", "vol", "tot")) {
+  for(kernel in c("sigmoid", "erf")) {
+    for(channel in c("cd", "cs")) {
+      VEA <- read.table(sprintf("tables_fnsix_15/DM_VEA_%s_%s_int.csv", channel, kernel), header=TRUE)
+      VEA
+      mask <- VEA$errtype==errtype
+      plotwitherror(x=VEA$iz[mask]+ 0.1*(VEA$ensno[mask]-1), y=VEA$intspline[mask], dy=VEA$dintspline[mask],
+                    col=VEA$ensno[mask], pch=VEA$ensno[mask], 
+                    main=paste(channel, kernel, "err =", errtype), xlab="Z", ylab="<M> [a.u.]", 
+                    xlim=c(0, max(VEA$iz+1.5)))
+      legend(legend=names, x="right", col=seq(1, max(VEA$ensno)), pch=seq(1, max(VEA$ensno)))
+      
+    }
+  }
+}
+```
