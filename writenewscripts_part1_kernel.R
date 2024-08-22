@@ -1,6 +1,6 @@
 #~ parent <- "/hiskp4/gross/heavymesons/data"
 parent <- "~/Documents/heavymesons/data/newinput"
-folders <- c("cB211.07.64", "cB211.07.96", "cC211.06.80", "cD211.054.96", "cE211.044.112", "cB211.07.48_300", "cB211.07.48_400", "cB211.07.64_48_36")
+folders <- c("cB211.07.64", "cB211.07.96", "cC211.06.80_600", "cD211.054.96", "cE211.044.112", "cB211.07.48_300", "cB211.07.48_400", "cB211.07.64_48_36")
 nameshort <- c("B64", "B96", "C80", "D96", "E112", "B48_300", "B48_400", "B64_48_36")
 subfolders  <- c("th1", "th2", "th3", "th4", "th5", "th6", "th7", "th8", "th9", "th9.5")
 
@@ -282,21 +282,21 @@ for(channel in c("su")) {
                 "",
                 "### stability plots A/A0",
                 "",
-                sprintf("```{r %s%sstabilaa0, eval=(knitr::is_html_output())}", celltitleDG, subfolder),
-                sprintf("plot_stability_AA0(path=%spath, inputfile=paste0(%spath, \"/../../DGammaDq2_%s_new.in\"), nnorm=3, neps=%d)", subfolder, subfolder, kernel, ensinfos[paste0("nsigma_", kernel), ]),
+                sprintf("```{r %s%sstabilaa0, eval=!(knitr::is_html_output())}", celltitleDG, subfolder),
+                sprintf("plot_stability_AA0(path=%spath, inputfile=paste0(%spath, \"/../../DGammaDq2_%s_new.in\"), nnorm=3, neps=%d, comblist=c(0))", subfolder, subfolder, kernel, ensinfos[paste0("nsigma_", kernel), ]),
                 "```",
                 "",
                 "",
                 "### stability plots lambda",
                 "",
                 sprintf("```{r %s%sstabillambda, eval=(knitr::is_html_output())}", celltitleDG, subfolder),
-                sprintf("plot_stability_lambda(path=%spath, inputfile=paste0(%spath, \"/../../DGammaDq2_%s_new.in\"), nnorm=3, neps=%d)", subfolder, subfolder, kernel, ensinfos[paste0("nsigma_", kernel), ]),
+                sprintf("plot_stability_lambda(path=%spath, inputfile=paste0(%spath, \"/../../DGammaDq2_%s_new.in\"), nnorm=3, neps=%d, comblist=c(0))", subfolder, subfolder, kernel, ensinfos[paste0("nsigma_", kernel), ]),
                 "```",
                 "",
                 "### Kernel reconstruction",
                 "",
-                sprintf("```{r %s%skernel, eval=(knitr::is_html_output())}", celltitleDG, subfolder),
-                sprintf("plot_reconstruction(path=%spath, inputfile=paste0(%spath, \"/../../DGammaDq2_%s_new.in\"), nnorm=3, neps=%d)", subfolder, subfolder, kernel, ensinfos[paste0("nsigma_", kernel), ]),
+                sprintf("```{r %s%skernel, eval=!(knitr::is_html_output())}", celltitleDG, subfolder),
+                sprintf("plot_reconstruction(path=%spath, inputfile=paste0(%spath, \"/../../DGammaDq2_%s_new.in\"), nnorm=3, neps=%d, comblist=c(0))", subfolder, subfolder, kernel, ensinfos[paste0("nsigma_", kernel), ]),
                 "```\n",
                 file=fileDG, sep="\n", append=TRUE)
                 
