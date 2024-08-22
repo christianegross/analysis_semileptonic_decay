@@ -100,7 +100,7 @@ for (i in seq_along(enslist)){
       slopebs <- (bsamples[, len] - bsamples[, len-1])/(x[len] - x[len-1])
       yupperbs <- bsamples[, len] + (upperboundarycd-x[len]) * slopebs
       
-      plotwitherror(x=x, y=y, dy=dy, main=title, xlab="q^2", ylab="DGammaDq^2")
+      plotwitherror(x=x, y=y, dy=dy, main=title, xlab="q^2", ylab="DGammaDq^2", main=paste(channel, kernel, errtype, "Z", iz))
       xval <- seq(min(x), upperboundarycd, length.out=500)
       lines(x=xval, y=predict(object=spline, x=xval)$y, col="red", lty=2)
       lines(x, y, col="blue", lty=3)

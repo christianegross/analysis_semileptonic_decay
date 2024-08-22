@@ -1,6 +1,6 @@
 
 source("/hiskp4/gross/heavymesons/helpscripts/functions_stability_plots.R")
-source("/hiskp4/gross/heavymesons/helpscripts/calc_DMDq2.R")
+source("/hiskp4/gross/heavymesons/helpscripts/calc_DGDq2.R")
 library("hadron")
 zlist <- c(4, 0, 1, 2, 3)
 errlist <- c("stat", "sys", "vol", "tot")
@@ -12,7 +12,7 @@ fitfn <- fnlin
 par.guess <- c(1, 1)
 comment <- "linear"
 
-savefolder <- "tables_fnfour_15"
+savefolder <- "tables_fnsix_15"
 
 
 pdf("plots/DM_VEA_contlim.pdf", title="")
@@ -52,7 +52,7 @@ for(kernel in c("sigmoid", "erf")) {
     for (th in c(1, 2, 3, 4, 5, 6, 7, 8, 9, 9.5)){
       for (errtype in errlist) {
         for (iz in zlist) {
-          title <- sprintf("th%s q^2 %.3f GeV^2 iz %d errtype %s", th, B64table$q[abs(B64table$th - th) < 1e-2][1]^2, iz, errtype)
+          title <- sprintf("%s %s th%s q^2 %.3f GeV^2 iz %d errtype %s", channel, kernel, th, B64table$q[abs(B64table$th - th) < 1e-2][1]^2, iz, errtype)
           print(title)
           ## we include the error on a in the continuum limit
           bsamples <- array(NA, dim=c(1000, 4))
@@ -66,8 +66,8 @@ for(kernel in c("sigmoid", "erf")) {
               mask[is.na(mask)] <- F
               masktable <- abs(tablelist[[index]]$th - th) < 1e-2 & tablelist[[index]]$iz == iz & tablelist[[index]]$errtype==errtype
               masktable[is.na(masktable)] <- F
-              y[index] <- enslist[[index]]$DMDq2gev[mask]
-              dy[index] <- enslist[[index]]$dDMDq2gev[mask]
+              y[index] <- enslist[[index]]$DGDq2gev[mask]
+              dy[index] <- enslist[[index]]$dDGDq2gev[mask]
               try(bsamples[, index] <- enslist[[index]]$datgev[, mask])
               x[index] <- tablelist[[index]]$afm[masktable]
               dx[index] <- tablelist[[index]]$dafm[masktable]
@@ -80,14 +80,14 @@ for(kernel in c("sigmoid", "erf")) {
           
           if(!inherits(fitresult, "try-error")) {
             if(length(par.guess)==1) {
-              if (doplot) plotwitherror(x=x^2, y=y, dy=dy, dx=dx, xlab="a[fm]^2", ylab="96 pi^4 DMamma / Dq^2 [GeV^-3]", main=title, xlim=c(-0.001, 0.007))
+              if (doplot) plotwitherror(x=x^2, y=y, dy=dy, dx=dx, xlab="a[fm]^2", ylab="96 pi^4 DM / Dq^2 [GeV^-3]", main=title, xlim=c(-0.001, 0.007))
               if (doplot) polygon(x=c(-0.002, 0.01, 0.01, -0.002), 
                                   y=c(rep(fitresult$t0[1] - fitresult$se[1], 2), rep(fitresult$t0[1] + fitresult$se[1], 2)), 
                                   col=pcol, border=NA)
               if (doplot) lines(x=c(-0.002, 0.01), y=rep(fitresult$t0[1], 2))
               if (doplot) plotwitherror(x=x^2, y=y, dy=dy, rep=TRUE)
             } else {
-              if (doplot) plot(fitresult, xlab="a[fm]^2", ylab="96 pi^4 DMamma / Dq^2 [GeV^-3]", 
+              if (doplot) plot(fitresult, xlab="a[fm]^2", ylab="96 pi^4 DM / Dq^2 [GeV^-3]", 
                                main=title, xlim=c(-0.001, 0.007), plot.range=2*c(-0.001, 0.007))
             }
             if (doplot) plotwitherror(x=0, y=fitresult$t0[1], dy=fitresult$se[1], rep=TRUE, col="red")
@@ -99,7 +99,7 @@ for(kernel in c("sigmoid", "erf")) {
             reslist$fit[[confcounter]] <- fitresult
             reslist$q[confcounter] <- B64table$q[abs(B64table$th - th) < 1e-2][1]
           } else {
-            if (doplot) try(plotwitherror(x=x, y=y, dy=dy, xlab="a[fm]^2", ylab="96 pi^4 DMamma / Dq^2 [GeV^-3]", main=title))
+            if (doplot) try(plotwitherror(x=x, y=y, dy=dy, xlab="a[fm]^2", ylab="96 pi^4 DM / Dq^2 [GeV^-3]", main=title))
             res <- rbind(res, data.frame(th=th, iz=iz, errtype=errtype, 
                                          lim=NA, dlim=NA, q=B64table$q[abs(B64table$th - th) < 1e-2][1]))
             reslist$th[confcounter] <- th

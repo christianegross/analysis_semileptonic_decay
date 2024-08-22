@@ -6,7 +6,7 @@ source("/hiskp4/gross/heavymesons/helpscripts/splineintegration_functions.R")
 
 errlist <- c("stat", "sys", "vol", "tot")
 zlist <- 0:4
-dividemass <- T
+dividemass <- F
 comment <- ""
 if(dividemass) comment <- "_dividemass"
 
@@ -39,17 +39,17 @@ for(channel_index in seq_along(channels)) {
         print(title)
         ## we include the error on a in the continuum limit
         bsamples <- array(rep(0, 11000), dim=c(1000, 11))
-        y <- c(0, mytable$DMDq2[mytable$iz==iz & mytable$errtype==errtype & mytable$channel==channel & mytable$kernel==kernel])
-        dy <- c(0, mytable$dDMDq2[mytable$iz==iz & mytable$errtype==errtype & mytable$channel==channel & mytable$kernel==kernel])
+        y <- c(0, mytable$DGDq2[mytable$iz==iz & mytable$errtype==errtype & mytable$channel==channel & mytable$kernel==kernel])
+        dy <- c(0, mytable$dDGDq2[mytable$iz==iz & mytable$errtype==errtype & mytable$channel==channel & mytable$kernel==kernel])
         x <- c(0, mytable$theta[mytable$iz==iz & mytable$errtype==errtype & mytable$channel==channel & mytable$kernel==kernel]*0.0934516)^2
-        bsamples[, 2:11] <- mydata$bsDMDq2[, mydata$iz==iz & mydata$errtype==errtype & mydata$channel==channel & mydata$kernel==kernel]
+        bsamples[, 2:11] <- mydata$bsDGDq2[, mydata$iz==iz & mydata$errtype==errtype & mydata$channel==channel & mydata$kernel==kernel]
         
         spline <- interpSpline(x, y)
         len <- length(x)
         slopebs <- (bsamples[, len] - bsamples[, len-1])/(x[len] - x[len-1])
         yupperbs <- bsamples[, len] + (upperboundarycd-x[len]) * slopebs
         
-        plotwitherror(x=x, y=y, dy=dy, main=title, xlab="q^2", ylab="DMammaDq^2")
+        plotwitherror(x=x, y=y, dy=dy, main=title, xlab="q^2", ylab="DMDq^2", main=paste(channel, kernel, errtype, "Z", iz))
         xval <- seq(min(x), upperboundarycd, length.out=500)
         lines(x=xval, y=predict(object=spline, x=xval)$y, col="red", lty=2)
         lines(x, y, col="blue", lty=3)

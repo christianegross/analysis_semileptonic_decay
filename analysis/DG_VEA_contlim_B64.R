@@ -52,7 +52,7 @@ for(kernel in c("sigmoid", "erf")) {
     for (th in c(1, 2, 3, 4, 5, 6, 7, 8, 9, 9.5)){
       for (errtype in errlist) {
         for (iz in zlist) {
-          title <- sprintf("th%s q^2 %.3f GeV^2 iz %d errtype %s", th, B64table$q[abs(B64table$th - th) < 1e-2][1]^2, iz, errtype)
+          title <- sprintf("%s %s th%s q^2 %.3f GeV^2 iz %d errtype %s", channel, kernel, th, B64table$q[abs(B64table$th - th) < 1e-2][1]^2, iz, errtype)
           print(title)
           ## we include the error on a in the continuum limit
           bsamples <- array(NA, dim=c(1000, 4))

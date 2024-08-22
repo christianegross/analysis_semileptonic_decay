@@ -8,7 +8,7 @@ fnlin <- function(par, x, boot.R, ...) par[1] + par[2] * x
 fncon <- function(par, x, boot.R, ...) par[1]
 
 
-savefolder <- "tables_fnfour_15"
+savefolder <- "tables_fnsix_15"
 
 
 upperboundarycd <- 0.8724
@@ -77,8 +77,8 @@ for (i in seq_along(enslist)){
           mask[is.na(mask)] <- F
           masktable <- abs(mytable$th - th) < 1e-2 & mytable$iz == iz & mytable$errtype==errtype
           masktable[is.na(masktable)] <- F
-          y[index+1] <- ens$DMDq2gev[mask]
-          dy[index+1] <- ens$dDMDq2gev[mask]
+          y[index+1] <- ens$DGDq2gev[mask]
+          dy[index+1] <- ens$dDGDq2gev[mask]
           try(bsamples[, index+1] <- ens$datgev[, mask])
           x[index+1] <- mytable$q[masktable]^2
         } else if(!is.na(mytable$q[abs(mytable$th - th) < 1e-2][1]^2) && names[i] == "contlim") {
@@ -100,7 +100,7 @@ for (i in seq_along(enslist)){
       slopebs <- (bsamples[, len] - bsamples[, len-1])/(x[len] - x[len-1])
       yupperbs <- bsamples[, len] + (upperboundarycd-x[len]) * slopebs
       
-      plotwitherror(x=x, y=y, dy=dy, main=title, xlab="q^2", ylab="DMammaDq^2")
+      plotwitherror(x=x, y=y, dy=dy, main=title, xlab="q^2", ylab="DMDq^2", main=paste(channel, kernel, errtype, "Z", iz))
       xval <- seq(min(x), upperboundarycd, length.out=500)
       lines(x=xval, y=predict(object=spline, x=xval)$y, col="red", lty=2)
       lines(x, y, col="blue", lty=3)

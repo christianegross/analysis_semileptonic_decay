@@ -7,7 +7,7 @@ res <- data.frame(channel=c(), kernel=c(), theta=c(), errtype=c(), iz=c(), DGDq2
 index <- 1
 
 savefolder <- "tables"
-dividemass <- T
+dividemass <- F
 comment <- ""
 if(dividemass) comment <- "_dividemass"
 pdf(sprintf("plots/DG_VAE_epslim%s.pdf", comment), title="")
