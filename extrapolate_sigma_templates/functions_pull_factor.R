@@ -1,14 +1,19 @@
 
-source("/home/gross/Documents/heavymesons/scripts_christiane/extrapolate_sigma_templates/calc_DGDq2.R")
+source("/home/gross/Documents/heavymesons/scripts/extrapolate_sigma_templates/calc_DGDq2.R")
 library("hadron")
 
 erf <- function(x) 2 * pnorm(x * sqrt(2)) - 1
 
 ## extract the data for a single z, epsilon combo from the DGDq2 measurements
 extractdata <- function(data, iz=0, icomb=0, iset=0, epsilons=seq(1, 19)-1) {
-  namesel <- paste0("id", ((iz)*5 + icomb)*data[[2+iset]]$metadata$neps + (epsilons), "ieps", epsilons, "icomb", icomb, "iz", iz)
-  
-  
+  namesel <- paste0("id", indexDG(inorm = 0, ieps = epsilons, icomb = icomb, idg = iz, nnorms = 1, neps = data[[2+iset]]$metadata$neps, NCOMBS = 5), 
+                    "ieps", epsilons, "icomb", icomb, "iz", iz)
+  # namesel <- paste0("id", ((iz)*5 + icomb)*data[[2+iset]]$metadata$neps + (epsilons), "ieps", epsilons, "icomb", icomb, "iz", iz)
+  # print(namesel)
+  # print(names(data[[2+iset]]))
+  # print(names(data[[2+iset]][namesel]))
+  # print(sapply(X=data[[2+iset]][namesel], FUN=getElement, name="DGDq2mean"))
+  # print(sapply(X=data[[2+iset]][namesel], FUN=getElement, name="DGDq2mean")[1, ])
   DGamma <- unlist(sapply(X=data[[2+iset]][namesel], FUN=getElement, name="DGDq2mean")[1, ], use.names=F)
   dDGamma_sys <- unname(unlist(sapply(X=data[[2+iset]][namesel], FUN=getElement, name="sys")[1, ], use.names=F))
   dDGamma <- unlist(sapply(X=data[[2+iset]][namesel], FUN=getElement, name="DGDq2sd")[1, ], use.names=F)
@@ -25,7 +30,7 @@ extractdata <- function(data, iz=0, icomb=0, iset=0, epsilons=seq(1, 19)-1) {
     AA0ar[norm, ] <- A0ABCW_ref_ar[, 2] / A0ABCW_ref_ar[, 1]
   }
   AA0 <- apply(X=AA0ar, MARGIN=2, FUN=min)
-  
+  # print(list(epsilons=x, DGammamean=DGamma, dDGamma=dDGamma, dDGamma_sys=dDGamma_sys, AA0=AA0))
   return(list(epsilons=x, DGammamean=DGamma, dDGamma=dDGamma, dDGamma_sys=dDGamma_sys, boot=bs, AA0=AA0))
   
 }
@@ -41,8 +46,14 @@ determinesyserrfinitevolumeextrapolated <- function(resultpath1, filenames1, ner
   stopifnot(length(filenames1) == length(nerr1))
   stopifnot(length(filenames1) == length(nerr2))
   if (any(nerr1 != nerr2)) { print("WARNING: nerr are not the same, assume nerr1 everywhere")}
-  if(mode=="DG") zlist=c(0, 1, 2, 3)
-  else if(mode=="DM") zlist=c(0, 1, 2, 3, 4)
+  if(mode=="DG") {
+    NDG <- 4
+    zlist=c(0, 1, 2, 3)
+  }
+  else if(mode=="DM")  {
+    NDG <- 5
+    zlist=c(0, 1, 2, 3, 4)
+  }
   else stop("mode has to be DG or DM")
   
   
@@ -51,7 +62,7 @@ determinesyserrfinitevolumeextrapolated <- function(resultpath1, filenames1, ner
   # resultdat <- list(tsnk=c(), Nt=c(), w=c(), nerr=c(), iz=c(), icomb=c(), th=c(), includesys = c(), DGDq2 = c(), dDGDq2 = c(), dat = array(NA, dim=c(1000, length(tsnk)*2*length(isets)*length(icomb)*4)))
   parindex <- 1
   for (index in seq(1, length(filenames1))){
-    data1 <- try(read_in_DGDq2(filename=filenames1[index], write=FALSE, resultpath=resultpath1[index]))
+    data1 <- try(read_in_DGDq2(filename=filenames1[index], write=FALSE, resultpath=resultpath1[index], NDG = 5))
     print(paste0(resultpath2[index], "/", filenames2[index]))
     data2 <- try(readRDS(file=paste0(resultpath2[index], "/", filenames2[index])))
     if(!inherits(x=data1, what="try-error") && !inherits(x=data2, what="try-error")) {
@@ -121,10 +132,12 @@ determinesyserrfinitevolumeextrapolated <- function(resultpath1, filenames1, ner
             
           }
         }
-        plot(x=result$epsilon[result$th==th[index]][!is.na(result$P[result$th==th[index]])], y=na.omit(result$P[result$th==th[index]]), xlab="epsilon", ylab="P", main=title,
-             col=result$iz[result$th==th[index]]+1, type="o")
+        plot(x=result$epsilon[result$th==th[index]][!is.na(result$P[result$th==th[index]])], y=result$P[result$th==th[index]][!is.na(result$P[result$th==th[index]])], 
+             xlab="epsilon", ylab="P", main=title,
+             col=result$iz[result$th==th[index]][!is.na(result$P[result$th==th[index]])]+1, type="p")
         lines(x=c(-1, 2), y=rep(0, 2))
-        legend(x="topleft", legend=c(0, 1, 2, "3   Z"), col=seq(1, 4), pch=c(1, 4), horiz=TRUE)
+        if (mode=="DG") legend(x="topleft", legend=c(0, 1, 2, "3   Z"), col=seq(1, 4), pch=c(1, 4), horiz=TRUE)
+        if (mode=="DM") legend(x="topleft", legend=c(0, 1, 2, 3, "4   Z"), col=seq(1, 5), pch=c(1, 5), horiz=TRUE)
       }
     }
   }
@@ -144,8 +157,14 @@ determinesyserrfinitevolume <- function(resultpath1, filenames1, nerr1, L1, resu
   stopifnot(length(filenames1) == length(filenames2))
   stopifnot(length(filenames1) == length(nerr1))
   stopifnot(length(filenames1) == length(nerr2))
-  if(mode=="DG") zlist=c(0, 1, 2, 3)
-  else if(mode=="DM") zlist=c(0, 1, 2, 3, 4)
+  if(mode=="DG") {
+    NDG <- 4
+    zlist=c(0, 1, 2, 3)
+  }
+  else if(mode=="DM")  {
+    NDG <- 5
+    zlist=c(0, 1, 2, 3, 4)
+  }
   else stop("mode has to be DG or DM")
   
   
@@ -154,8 +173,8 @@ determinesyserrfinitevolume <- function(resultpath1, filenames1, nerr1, L1, resu
   # resultdat <- list(tsnk=c(), Nt=c(), w=c(), nerr=c(), iz=c(), icomb=c(), th=c(), includesys = c(), DGDq2 = c(), dDGDq2 = c(), dat = array(NA, dim=c(1000, length(tsnk)*2*length(isets)*length(icomb)*4)))
   parindex <- 1
   for (index in seq(1, length(filenames1))){
-    data1 <- try(read_in_DGDq2(filename=filenames1[index], write=FALSE, resultpath=resultpath1[index]))
-    data2 <- try(read_in_DGDq2(filename=filenames2[index], write=FALSE, resultpath=resultpath2[index]))
+    data1 <- try(read_in_DGDq2(filename=filenames1[index], write=FALSE, resultpath=resultpath1[index], NDG = NDG))
+    data2 <- try(read_in_DGDq2(filename=filenames2[index], write=FALSE, resultpath=resultpath2[index], NDG = NDG))
     if(!inherits(x=data1, what="try-error") && !inherits(x=data2, what="try-error")) {
       for (iset in isets) {
         mymasks <- list(c(NA))
@@ -221,10 +240,12 @@ determinesyserrfinitevolume <- function(resultpath1, filenames1, nerr1, L1, resu
             
           }
         }
-        plot(x=result$epsilon[result$th==th[index]], y=result$P[result$th==th[index]], xlab="epsilon", ylab="P", main=title,
-             col=result$iz[result$th==th[index]]+1, type="o")
+        plot(x=result$epsilon[result$th==th[index]][!is.na(result$P[result$th==th[index]])], y=result$P[result$th==th[index]][!is.na(result$P[result$th==th[index]])], 
+             xlab="epsilon", ylab="P", main=title,
+             col=result$iz[result$th==th[index]][!is.na(result$P[result$th==th[index]])]+1, type="p")
         lines(x=c(-1, 2), y=rep(0, 2))
-        legend(x="topright", legend=c(0, 1, 2, 3), col=seq(1, 4), pch=c(1, 4), title="Z")
+        if (mode=="DG") legend(x="topleft", legend=c(0, 1, 2, "3   Z"), col=seq(1, 4), pch=c(1, 4), horiz=TRUE)
+        if (mode=="DM") legend(x="topleft", legend=c(0, 1, 2, 3, "4   Z"), col=seq(1, 5), pch=c(1, 5), horiz=TRUE)
       }
     }
   }

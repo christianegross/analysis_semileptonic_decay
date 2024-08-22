@@ -1,6 +1,6 @@
 
-source("/home/gross/Documents/heavymesons/scripts_christiane/extrapolate_sigma_templates/read_in_binary.R")
-source("/home/gross/Documents/heavymesons/scripts_christiane/extrapolate_sigma_templates/aichelpers.R")
+source("/home/gross/Documents/heavymesons/scripts/extrapolate_sigma_templates/read_in_binary.R")
+source("/home/gross/Documents/heavymesons/scripts/extrapolate_sigma_templates/aichelpers.R")
 
 ## bootsample = bootsample - (mean - bootsample) * (errtotmean / bootstat - 1)
 increasedistancebootstrap <- function(sample, mean, ratio) (sample - (mean - sample) * (ratio - 1))

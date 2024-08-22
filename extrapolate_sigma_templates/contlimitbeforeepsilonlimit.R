@@ -1,5 +1,5 @@
 library("hadron")
-source("/home/gross/Documents/heavymesons/scripts_christiane/extrapolate_sigma_templates/read_in_binary.R")
+source("/home/gross/Documents/heavymesons/scripts/extrapolate_sigma_templates/read_in_binary.R")
 
 #~ source("/hiskp4/gross/heavymesons/helpscripts/read_in_binary.R")
 
@@ -47,9 +47,9 @@ determineDGDq2_contlim <- function(resultpathlist, filenames, th,
         }
     }
     
-    if(!dividemass) amds <- rep(1, numberspacings)
-    if(dividemass) savename <- paste0(savename, "_dividemass")
     agev <- afm / 0.1973269804 
+    if(!dividemass) amds <- agev
+    if(dividemass) savename <- paste0(savename, "_dividemass")
 
     if(neps==-1) neps=epsuplim-epslowlim
     result <- data.frame(w=NA, nerr=NA, iz=NA, icomb=NA, th = NA, epsindex=NA, eps=NA, DGDq2=NA, dDGDq2=NA, errtype=NA)
@@ -224,7 +224,7 @@ for (iset in isets) {
             if ("vol" %in% errors) {
                 for (datanumber in seq(1, numberspacings)) {
                     volume <- finitevolumeall[[datanumber]][finitevolumeall[[datanumber]]$th == th[index] & finitevolumeall[[datanumber]]$iz == iz, ]
-                    stopifnot(datalist[[datanumber]][[2+iset]]$epsilons == volume$epsilon)
+                    stopifnot(datalist[[datanumber]][[2+iset]]$epsilons[eps+1] == volume$epsilon[eps+1])
                     
     
                 ratio <- sqrt(dDGamma[[datanumber]]^2 + volume$Delta[eps+1]^2)/dDGamma[[datanumber]]
@@ -271,7 +271,7 @@ for (iset in isets) {
             if ("tot" %in% errors) {
                 for (datanumber in seq(1, numberspacings)) {
                     volume <- finitevolumeall[[datanumber]][finitevolumeall[[datanumber]]$th == th[index] & finitevolumeall[[datanumber]]$iz == iz, ]
-                    stopifnot(datalist[[datanumber]][[2+iset]]$epsilons == volume$epsilon)
+                    stopifnot(datalist[[datanumber]][[2+iset]]$epsilons[eps+1] == volume$epsilon[eps+1])
                     
                     ratio <- sqrt(dDGamma[[datanumber]]^2 + dDGammasys[[datanumber]]^2 + volume$Delta[eps+1]^2)/dDGamma[[datanumber]]
                     boottot[, datanumber] <- bs[, datanumber]*(-ratio) + array(rep(DGamma[[datanumber]]*(1+ratio), each=bsamples), dim=c(bsamples, length(ratio)))

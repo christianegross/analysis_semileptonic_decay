@@ -214,8 +214,10 @@ read_in_DGDq2 <- function(filename, resultpath="./", endian=.Platform$endian, NC
 #~    return inorm+DG->nnorms*(ieps+DG->neps*(icomb+NCOMBS*idg));
 #~ }
 
-indexDG <- function(inorm, ieps, icomb, idg, nnorms, neps, NCOMBS) {
-    return (inorm * nnorms(ieps + neps * (icomb + NCOMBS * idg)))
+## for reading in, nnorms should always be set to one
+
+indexDG <- function(inorm, ieps, icomb=0, idg, nnorms=1, neps, NCOMBS=5) {
+    return (inorm + nnorms*(ieps + neps * (icomb + NCOMBS * idg)))
 }
 
 

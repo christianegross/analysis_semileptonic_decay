@@ -1,5 +1,5 @@
 #~ library("hadron")
-source("/home/gross/Documents/heavymesons/scripts_christiane/extrapolate_sigma_templates/read_in_binary.R")
+source("/home/gross/Documents/heavymesons/scripts/extrapolate_sigma_templates/read_in_binary.R")
 
 determineDGDq2 <- function(resultpath, filenames, tsnk, Nt, th,
         nerr, amin, savename, fitfn, par.guess, isets=c(0), icomb=c(0),
@@ -16,7 +16,7 @@ determineDGDq2 <- function(resultpath, filenames, tsnk, Nt, th,
     resultdat <- list(tsnk=c(), Nt=c(), w=c(), nerr=c(), iz=c(), icomb=c(), th=c(), includesys = c(), DGDq2 = c(), dDGDq2 = c(), dat = array(NA, dim=c(1000, length(tsnk)*2*length(isets)*length(icomb)*4)))
     parindex <- 1
 for (index in seq(1, length(filenames))){
-    data <- read_in_DGDq2(filename=filenames[index], write=FALSE, resultpath=resultpath)
+    data <- read_in_DGDq2(filename=filenames[index], write=FALSE, resultpath=resultpath, NDG=maxz)
 for (iset in isets) {
     mymasks <- list(c(NA))
     for (iz in c(0, 1, 2, 3)) {
