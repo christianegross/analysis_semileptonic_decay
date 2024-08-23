@@ -60,7 +60,7 @@ for(kernel in c("sigmoid", "erf")) {
       am_H <- amds[ens_index] # dimensionless
       conversionfactor <- (am_H/agev)^3/2/pi
       
-      savename <- sprintf("%s/DG_complete_%s_%s_finvol_%s", savefolder, nameshort[ens_index], channel, kernel)
+      savename <- sprintf("%s/DG_VEA_epslim_%s_%s_%s", savefolder, nameshort[ens_index], channel, kernel)
       result <- read.table(paste0(savename, ".csv"), header=TRUE)
       
       result[, c("DGDq2gev", "dDGDq2gev")] <- result[, c("DGDq2", "dDGDq2")] * conversionfactor
@@ -85,7 +85,7 @@ for(kernel in c("sigmoid", "erf")) {
       }
       
       dat <- readRDS(paste0(savename, ".RDS"))
-      savename <- sprintf("%s/DG_VEA_epslim_converted_%s_%s_finvol_%s", savefolder, nameshort[ens_index], channel, kernel)
+      savename <- sprintf("%s/DG_VEA_epslim_converted_%s_%s_%s", savefolder, nameshort[ens_index], channel, kernel)
       
       dat$DGDq2gev <- dat$DGDq2 * conversionfactor
       dat$dDGDq2gev <- dat$dDGDq2 * conversionfactor

@@ -49,7 +49,7 @@ for(channel_index in seq_along(channels)) {
         slopebs <- (bsamples[, len] - bsamples[, len-1])/(x[len] - x[len-1])
         yupperbs <- bsamples[, len] + (upperboundarycd-x[len]) * slopebs
         
-        plotwitherror(x=x, y=y, dy=dy, main=title, xlab="q^2", ylab="DMDq^2", main=paste(channel, kernel, errtype, "Z", iz))
+        plotwitherror(x=x, y=y, dy=dy, xlab="q^2", ylab="DMDq^2", main=paste(channel, kernel, title))
         xval <- seq(min(x), upperboundarycd, length.out=500)
         lines(x=xval, y=predict(object=spline, x=xval)$y, col="red", lty=2)
         lines(x, y, col="blue", lty=3)

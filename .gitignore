@@ -9,7 +9,10 @@
 *lock*
 *.RDS
 *.bin
-
+*.aux
+*.log
+*.synctex.gz
+*.out
 
 extrapolate_sigma/old_results/*
 extrapolate_sigma/old_scripts/*
