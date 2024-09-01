@@ -10,8 +10,8 @@ dividemass <- F
 comment <- ""
 if(dividemass) comment <- "_dividemass"
 
-mytable <- read.table(sprintf("tables/DM_VAE_epslim%s.csv", comment), header=TRUE)
-mydata <- readRDS(sprintf("tables/DM_VAE_epslim%s.RDS", comment))
+mytable <- read.table(sprintf("tables_fnfour_10/DM_VAE_epslim%s.csv", comment), header=TRUE)
+mydata <- readRDS(sprintf("tables_fnfour_10/DM_VAE_epslim%s.RDS", comment))
 res <- data.frame(channel=NA, kernel=NA, ensno=NA, errtype=NA, iz=NA, intspline=NA, dintspline=NA, intbsspline=NA, inttrap=NA, dinttrap=NA, intbstrap=NA)
 reslist <- list()
 upperboundarycd <- 0.8724
@@ -84,9 +84,9 @@ for(channel_index in seq_along(channels)) {
 }
 res <- res[-1, ]
 res
-write.table(x=res, file=sprintf("tables/DM_VAE_int%s.csv", comment), row.names=F, col.names=T)
+write.table(x=res, file=sprintf("tables_fnfour_10/DM_VAE_int%s.csv", comment), row.names=F, col.names=T)
 
 reslist$info <- res
-saveRDS(object=reslist, file=sprintf("tables/DM_VAE_int%s.RDS", comment)) 
+saveRDS(object=reslist, file=sprintf("tables_fnfour_10/DM_VAE_int%s.RDS", comment)) 
 
 dev.off()

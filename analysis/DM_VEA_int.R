@@ -8,7 +8,7 @@ fnlin <- function(par, x, boot.R, ...) par[1] + par[2] * x
 fncon <- function(par, x, boot.R, ...) par[1]
 
 
-savefolder <- "tables_fnsix_15"
+savefolder <- "tables_fnfour_10"
 
 
 upperboundarycd <- 0.8724
