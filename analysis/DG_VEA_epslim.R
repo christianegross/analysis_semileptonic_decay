@@ -14,7 +14,7 @@ afm <- c(0.07957, 0.07957, 0.06821, 0.05692, 0.04891, 0.07957, 0.07957, 0.07957)
 amds <-  c(0.8, 0.8, 0.684, 0.57, 0.49, 0.8, 0.8, 0.8)
 ensembles <- c("cB211.07.64", "cB211.07.96", "cC211.06.80_600", "cD211.054.96", "cE211.044.112_300", "cB211.07.48_300", "cB211.07.48_400", "cB211.07.64_48_36")
 nameshort <- c("B64", "B96", "C80", "D96", "E112", "B48_300", "B48_400", "B64_48_36")
-savefolder <- "tables_fnfour_10"
+savefolder <- "tables_fnfour_12"
 
 par.guess <- rep(1, 3)
 fitfn <- fnfour
@@ -52,7 +52,7 @@ for(kernel in c("sigmoid", "erf")) {
                          tsnk = tsnk, Nt = Nt, th = th, nerr = nerr, amin = maxAmin, savename = savename,
                          fitfn = fitfn, par.guess = par.guess, errors=c("stat", "sys", "vol", "tot"),
                          volumetable=sprintf("tables/volume_interpolations/DG_tryB64factor_%s_%s.csv", channel, kernel),
-                         neps=10)
+                         neps=12)
       
       a <- afm[ens_index]
       agev <- afm[ens_index] / 0.1973269804 # fm / hbarc = GeV^-1

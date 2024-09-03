@@ -7,7 +7,7 @@ res <- data.frame(channel=c(), kernel=c(), theta=c(), errtype=c(), iz=c(), DGDq2
 
 index <- 1
 
-savefolder <- "tables_fnfour_10"
+savefolder <- "tables_fnfour_12"
 dividemass <- F
 comment <- ""
 if(dividemass) comment <- "_dividemass"
@@ -28,7 +28,7 @@ for(channel in c("cd", "cs")) {
           # print(dattmp)
           nafraction <- sum(is.na(bs)) / length(bs)
           
-          myfit <- try(bootstrap.nlsfit(fn=fnfour, x=dattmp$eps, y=dattmp$DGDq2, bs=bs, par.guess=c(1, 1, 1, 1), na.rm=T, mask=1:10))
+          myfit <- try(bootstrap.nlsfit(fn=fnfour, x=dattmp$eps, y=dattmp$DGDq2, bs=bs, par.guess=c(1, 1, 1, 1), na.rm=T, mask=1:12))
           if(!inherits(myfit, "try-error") & nafraction < 0.05) {
           plot(myfit, xlab="epsilon/mH", ylab="DM/Dw^2", plot.range=c(-0.1, max(myfit$x)*1.1), xlim=c(c(0, max(myfit$x))),
                main=paste("channel", channel, "kernel", kernel, "th", theta, "iz", iz, "err", errtype))

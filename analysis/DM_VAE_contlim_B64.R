@@ -14,12 +14,13 @@ maxAmin <- 1
 dividemass <- F
 comment <- ""
 if(dividemass) comment <- "_dividemass"
+savefolder <- "tables_fnfour_12"
 
 for(channel in c("cd", "cs")) {
     for(kernel in c("sigmoid", "erf")) {
 for(theta in as.character(c(1:9, 9.5))) {
   pdf(sprintf("plots/DM_%s_%s_VAE_contlim_th%s%s.pdf", channel, kernel, theta, comment),)
-  savename <- sprintf("tables_fnfour_10/DM_VAE_contlim_%s_%s_th%s", channel, kernel, theta)
+  savename <- sprintf("%s/DM_VAE_contlim_%s_%s_th%s", savefolder, channel, kernel, theta)
   files <- sprintf("%s_new/outputDMDq2/DMDq2.bin", kernel)
   mine <- determineDGDq2_contlim(resultpathlist=list(sprintf("/hiskp4/gross/heavymesons/data/%s/cB211.07.64/th%s/", channel, theta),
                                                      sprintf("/hiskp4/gross/heavymesons/data/%s/cC211.06.80_600/th%s/", channel, theta),
