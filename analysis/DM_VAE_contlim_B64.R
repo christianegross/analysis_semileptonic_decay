@@ -35,7 +35,7 @@ for(theta in as.character(c(1:9, 9.5))) {
                                                      sprintf("tables/volume_interpolations/DM_tryB64factor_%s_%s.csv", channel, kernel), 
                                                      sprintf("tables/volume_interpolations/DM_tryB64factor_%s_%s.csv", channel, kernel), 
                                                      sprintf("tables/volume_interpolations/DM_tryB64factor_%s_%s.csv", channel, kernel)),
-                                 numberspacings = 4, neps=19, afm=c(0.07957, 0.06821, 0.05692, 0.04891), amds = c(0.8, 0.684, 0.57, 0.49), 
+                                 numberspacings = 4, neps=15, afm=c(0.07957, 0.06821, 0.05692, 0.04891), amds = c(0.8, 0.684, 0.57, 0.49), 
                                  dividemass = dividemass, zlist=c(0, 1, 2, 3, 4), maxz=5, NDG=5)
   dev.off()
 }

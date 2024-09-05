@@ -73,6 +73,10 @@ for(kernel in c("sigmoid", "erf")) {
               dx[index] <- tablelist[[index]]$dafm[masktable]
             }
           }
+          print(x)
+          print(y)
+          print(dim(bsamples))
+          print(bsamples[1, ])
           
           
           
