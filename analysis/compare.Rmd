@@ -37,17 +37,19 @@ In converting the results from the HLT result to physical units, I have used the
 
 The differential decay rate is shown below for all possible configurations of channel, kernel and error type. 
 
-Both orders of extrapolations are compatible, the order $V, \epsilon, a$ seems to lead to a larger effect of the volume errors in the final result.
+<!-- Both orders of extrapolations are compatible, the order $V, \epsilon, a$ seems to lead to a larger effect of the volume errors in the final result. -->
+
+The two orders are almost indistinguishable, the errors are also very similar.
 
 The markers of the order $V, \epsilon, a$ are shifted for better legibility.
 
 
 ```{r}
-VAE <- read.table("tables/DG_VAE_epslim_dividemass.csv", header=TRUE)
+VAE <- read.table("tables/DG_VAE_epslim.csv", header=TRUE)
 
-errtype <- "stat"
+diff <- data.frame(channel=c(), kernel=c(), errtype=c(), iz=c(), reldiff=c(), errdiff=c())
 m_Ds <- 1.96835
-conversionfactor <- 1/2/pi
+conversionfactor <- m_Ds^3/2/pi
 for(errtype in c("stat", "sys", "vol", "tot")) {
   for(kernel in c("sigmoid", "erf")) {
     for(channel in c("cd", "cs")) {
@@ -62,9 +64,18 @@ for(errtype in c("stat", "sys", "vol", "tot")) {
                     col=VEA$iz[maskVEA]+1, pch=2, rep=T)
       legend(x="topright", legend=c("a, eps", "eps, a", paste("Z", 0:3)), col=c(1, 1, 1:4), pch=c(1, 2, rep(3, 4)))
       
+      for(iz in 0:3) {
+        diff <- rbind(diff, data.frame(channel=channel, kernel=kernel, errtype=errtype, iz=iz, 
+                                       reldiff=c((VAE$DGDq2[maskVAE & VAE$iz==iz]*conversionfactor - VEA$lim[maskVEA & VEA$iz==iz]) / sqrt(VAE$dDGDq2[maskVAE & VAE$iz==iz]^2*conversionfactor^2 + VEA$dlim[maskVEA & VEA$iz==iz]^2)), 
+                                       errdiff=c(VAE$dDGDq2[maskVAE & VAE$iz==iz]*conversionfactor - VEA$dlim[maskVEA & VEA$iz==iz])))
+        
+      }
+      
     }
   }
 }
+
+write.table(x=diff, file="tables/DG_diff_VAE_VEA_afterlimits.csv", row.names=F, col.names=T)
 
 ```
 
@@ -79,13 +90,12 @@ The markers of the order $V, \epsilon, a$ are shifted for better legibility.
 
 
 ```{r}
-VAE <- read.table("tables/DM_VAE_epslim.csv", header=TRUE)
+VAE <- read.table("tables_fnfour_12/DM_VAE_epslim.csv", header=TRUE)
 
-errtype <- "stat"
+diff <- data.frame(channel=c(), kernel=c(), errtype=c(), iz=c(), reldiff=c(), errdiff=c())
 m_Ds <- 1.96835
 conversionfactorVAE <- m_Ds^3
 conversionfactorVEA <- 1/m_Ds^2
-# conversionfactor <- 1
 
 
 for(errtype in c("stat", "sys", "vol", "tot")) {
@@ -102,10 +112,16 @@ for(errtype in c("stat", "sys", "vol", "tot")) {
                     col=VEA$iz[maskVEA]+1, pch=2, rep=T)
       legend(x="topright", legend=c("a, eps", "eps, a", paste("Z", 0:4)), col=c(1, 1, 1:5), pch=c(1, 2, rep(3, 5)))
       
+      for(iz in 0:4) {
+        diff <- rbind(diff, data.frame(channel=channel, kernel=kernel, errtype=errtype, iz=iz, 
+                                       reldiff=c((VAE$DGDq2[maskVAE & VAE$iz==iz]*conversionfactorVAE - VEA$lim[maskVEA & VEA$iz==iz]*conversionfactorVEA) / sqrt(VAE$dDGDq2[maskVAE & VAE$iz==iz]^2*conversionfactorVAE^2 + VEA$dlim[maskVEA & VEA$iz==iz]^2*conversionfactorVEA^2)), 
+                                       errdiff=c(VAE$dDGDq2[maskVAE & VAE$iz==iz]*conversionfactorVAE - VEA$dlim[maskVEA & VEA$iz==iz]*conversionfactorVEA)))
+      }
     }
   }
 }
 
+write.table(x=diff, file="tables/DM_diff_VAE_VEA_afterlimits.csv", row.names=F, col.names=T)
 ```
 
 
@@ -114,6 +130,8 @@ for(errtype in c("stat", "sys", "vol", "tot")) {
 The total decay rate is also compatible for both orders of the limits. 
 
 The result for the erf kernel is higher than that for the sigmoid kernel, but all results are compatible.
+
+The order $V, a, \epsilon$ leads to slightly lower results than the order $V, \epsilon, a$.
 
 The results for integration with splines and integration with the trapezoid rule are also compatible.
 
@@ -127,44 +145,67 @@ V_su <- V_cd
 G_F <- 1.1663788e-5
 m_Ds <- 1.96835
 errlist <- c("stat", "sys", "vol", "tot")
-res <- data.frame(kernel=c(), errtype=c(), epsa = c(), depsa = c(), aeps=c(), daeps=c())
+res <- data.frame(kernel=c(), errtype=c(), epsa = c(), depsa = c(), aeps=c(), daeps=c(), aepsaic=c(), daepsaic=c(), epsaaic=c(), depsaaic=c())
 
-convVAE <- 1/48 /pi^4 *G_F^2
+convVAE <- m_Ds^3/48 /pi^4 *G_F^2
 convVEA <- 1/24 /pi^3 *G_F^2
 
 for(kernel in c("sigmoid", "erf")) {
   for (errtype in errlist) {
-    intdatacd <- read.table(sprintf("tables_fnfour_15/DG_VEA_cd_%s_int.csv", kernel), header=TRUE)
-    intdatacs <- read.table(sprintf("tables_fnfour_15/DG_VEA_cs_%s_int.csv", kernel), header=TRUE)
+    intdatacd <- read.table(sprintf("tables_fnfour_12/DG_VEA_cd_%s_int.csv", kernel), header=TRUE)
+    intdatacs <- read.table(sprintf("tables_fnfour_12/DG_VEA_cs_%s_int.csv", kernel), header=TRUE)
+    intdatacdaic <- read.table(sprintf("tables_fnfour_12/DG_VEA_cd_%s_int_aic.csv", kernel), header=TRUE)
+    intdatacsaic <- read.table(sprintf("tables_fnfour_12/DG_VEA_cs_%s_int_aic.csv", kernel), header=TRUE)
     # int2 <- read.table("~/Documents/heavymesons/scripts/analysis/tables/DG_VAE_int.csv", header=TRUE)
-    int2 <- read.table("tables/DG_VAE_int_dividemass.csv", header=TRUE)
+    int2 <- read.table("tables_fnfour_12/DG_VAE_int.csv", header=TRUE)
+    int3 <- read.table("tables_fnfour_12/DG_VAE_int_aic.csv", header=TRUE)
     
     
     sum1 <- 0
     dsum1sq <- 0
     sum2 <- 0
     dsum2sq <- 0
+    sum3 <- 0
+    dsum3sq <- 0
+    sum4 <- 0
+    dsum4sq <- 0
     
     for(iz in 0:2) {
       sum1 <- sum1 + intdatacd$intspline[intdatacd$iz==iz & intdatacd$errtype==errtype & intdatacd$name=="contlim"] * V_cd^2 * convVEA
-      sum1 <- sum1 + intdatacs$intspline[intdatacs$iz==iz & intdatacs$errtype==errtype & intdatacd$name=="contlim"] * V_cs^2 * convVEA
+      sum1 <- sum1 + intdatacs$intspline[intdatacs$iz==iz & intdatacs$errtype==errtype & intdatacs$name=="contlim"] * V_cs^2 * convVEA
       dsum1sq <- dsum1sq + (intdatacd$dintspline[intdatacd$iz==iz & intdatacd$errtype==errtype & intdatacd$name=="contlim"] * V_cd^2 * convVEA)^2
-      dsum1sq <- dsum1sq + (intdatacs$dintspline[intdatacs$iz==iz & intdatacs$errtype==errtype & intdatacd$name=="contlim"] * V_cs^2 * convVEA)^2
+      dsum1sq <- dsum1sq + (intdatacs$dintspline[intdatacs$iz==iz & intdatacs$errtype==errtype & intdatacs$name=="contlim"] * V_cs^2 * convVEA)^2
       sum2 <- sum2 + int2$intspline[int2$kernel==kernel & int2$iz==iz & int2$errtype==errtype & int2$channel=="cd"] * V_cd^2 * convVAE
       sum2 <- sum2 + int2$intspline[int2$kernel==kernel & int2$iz==iz & int2$errtype==errtype & int2$channel=="cs"] * V_cs^2 * convVAE
       dsum2sq <- dsum2sq + (int2$dintspline[int2$kernel==kernel & int2$iz==iz & int2$errtype==errtype & int2$channel=="cd"] * V_cd^2 * convVAE)^2
       dsum2sq <- dsum2sq + (int2$dintspline[int2$kernel==kernel & int2$iz==iz & int2$errtype==errtype & int2$channel=="cs"] * V_cs^2 * convVAE)^2
+      sum3 <- sum3 + int3$intspline[int3$kernel==kernel & int3$iz==iz & int3$errtype==errtype & int3$channel=="cd"] * V_cd^2 * convVAE
+      sum3 <- sum3 + int3$intspline[int3$kernel==kernel & int3$iz==iz & int3$errtype==errtype & int3$channel=="cs"] * V_cs^2 * convVAE
+      dsum3sq <- dsum3sq + (int3$dintspline[int3$kernel==kernel & int3$iz==iz & int3$errtype==errtype & int3$channel=="cd"] * V_cd^2 * convVAE)^2
+      dsum3sq <- dsum3sq + (int3$dintspline[int3$kernel==kernel & int3$iz==iz & int3$errtype==errtype & int3$channel=="cs"] * V_cs^2 * convVAE)^2
+      sum4 <- sum4 + intdatacdaic$intspline[intdatacdaic$iz==iz & intdatacdaic$errtype==errtype & intdatacdaic$name=="contlim"] * V_cd^2 * convVEA
+      sum4 <- sum4 + intdatacsaic$intspline[intdatacsaic$iz==iz & intdatacsaic$errtype==errtype & intdatacsaic$name=="contlim"] * V_cs^2 * convVEA
+      dsum4sq <- dsum4sq + (intdatacdaic$dintspline[intdatacdaic$iz==iz & intdatacdaic$errtype==errtype & intdatacdaic$name=="contlim"] * V_cd^2 * convVEA)^2
+      dsum4sq <- dsum4sq + (intdatacsaic$dintspline[intdatacsaic$iz==iz & intdatacsaic$errtype==errtype & intdatacsaic$name=="contlim"] * V_cs^2 * convVEA)^2
     }
-    newline <- data.frame(kernel=kernel, errtype=errtype, epsa = sum1, depsa = sqrt(dsum1sq), aeps=sum2, daeps=sqrt(dsum2sq))
+    newline <- data.frame(kernel=kernel, errtype=errtype, epsa = sum1, depsa = sqrt(dsum1sq), aeps=sum2, daeps=sqrt(dsum2sq), aepsaic=sum3, daepsaic=sqrt(dsum3sq), epsaaic=sum4, depsaaic=sqrt(dsum4sq))
     res <- rbind(res, newline)
   }
 }
 resDGspline <- res
+# pdf("comparediffernetlimitsinclaic.pdf", title="")
 plotwitherror(x=1:8, y=res$epsa, dy=res$depsa, col=1, pch=c(rep(1, 4), rep(2, 4)), xlab="", xaxt="n", ylab="Gamma",
-              ylim=c(min(res$epsa-res$depsa, res$aeps-res$daeps), max(res$epsa+res$depsa, res$aeps+res$daeps)), xlim=c(1, 10))
+              ylim=c(min(res$epsa-res$depsa, res$aeps-res$daeps), max(res$epsa+res$depsa, res$aeps+res$daeps)), xlim=c(1, 11))
 plotwitherror(x=1:8+0.2, y=res$aeps, dy=res$daeps, col=2, pch=c(rep(1, 4), rep(2, 4)), rep=T)
-legend(x="right", legend=c("a, eps", "eps, a"), col=c(2, 1), pch=c(4, 4))
+plotwitherror(x=1:8+0.4, y=res$aepsaic, dy=res$daepsaic, col=4, pch=c(rep(1, 4), rep(2, 4)), rep=T)
+plotwitherror(x=1:8+0.6, y=res$epsaaic, dy=res$depsaaic, col=6, pch=c(rep(1, 4), rep(2, 4)), rep=T)
+legend(x="right", legend=c("a, eps, lin", "eps, a, lin", "a, eps, aic", "eps, a, aic"), col=c(2, 1, 4, 6), pch=c(4, 4, 4, 4))
 axis(side=1, at=1:8, labels=c(paste("sigmoid\n", errlist), paste("erf\n", errlist)), las=2)
+write.table(res, "tmpresint.csv")
+# dev.off()
+res
+
+DGtmp <- res[res$errtype=="tot", ]
 
 ```
 
@@ -181,58 +222,85 @@ V_su <- V_cd
 G_F <- 1.1663788e-5
 m_Ds <- 1.96835
 errlist <- c("stat", "sys", "vol", "tot")
-res <- data.frame(kernel=c(), errtype=c(), epsa = c(), depsa = c(), aeps=c(), daeps=c())
+res <- data.frame(kernel=c(), errtype=c(), epsa = c(), depsa = c(), aeps=c(), daeps=c(), aepsaic=c(), daepsaic=c(), epsaaic=c(), depsaaic=c())
 
-convVAE <- 1/48 /pi^4 *G_F^2
+convVAE <- m_Ds^3/48 /pi^4 *G_F^2
 convVEA <- 1/24 /pi^3 *G_F^2
 
 for(kernel in c("sigmoid", "erf")) {
   for (errtype in errlist) {
-    intdatacd <- read.table(sprintf("tables_fnfour_15/DG_VEA_cd_%s_int.csv", kernel), header=TRUE)
-    intdatacs <- read.table(sprintf("tables_fnfour_15/DG_VEA_cs_%s_int.csv", kernel), header=TRUE)
+    intdatacd <- read.table(sprintf("tables_fnfour_12/DG_VEA_cd_%s_int.csv", kernel), header=TRUE)
+    intdatacs <- read.table(sprintf("tables_fnfour_12/DG_VEA_cs_%s_int.csv", kernel), header=TRUE)
+    intdatacdaic <- read.table(sprintf("tables_fnfour_12/DG_VEA_cd_%s_int_aic.csv", kernel), header=TRUE)
+    intdatacsaic <- read.table(sprintf("tables_fnfour_12/DG_VEA_cs_%s_int_aic.csv", kernel), header=TRUE)
     # int2 <- read.table("~/Documents/heavymesons/scripts/analysis/tables/DG_VAE_int.csv", header=TRUE)
-    int2 <- read.table("tables/DG_VAE_int_dividemass.csv", header=TRUE)
+    int2 <- read.table("tables_fnfour_12/DG_VAE_int.csv", header=TRUE)
+    int3 <- read.table("tables_fnfour_12/DG_VAE_int_aic.csv", header=TRUE)
     
     
     sum1 <- 0
     dsum1sq <- 0
     sum2 <- 0
     dsum2sq <- 0
+    sum3 <- 0
+    dsum3sq <- 0
+    sum4 <- 0
+    dsum4sq <- 0
     
     for(iz in 0:2) {
       sum1 <- sum1 + intdatacd$inttrap[intdatacd$iz==iz & intdatacd$errtype==errtype & intdatacd$name=="contlim"] * V_cd^2 * convVEA
-      sum1 <- sum1 + intdatacs$inttrap[intdatacs$iz==iz & intdatacs$errtype==errtype & intdatacd$name=="contlim"] * V_cs^2 * convVEA
+      sum1 <- sum1 + intdatacs$inttrap[intdatacs$iz==iz & intdatacs$errtype==errtype & intdatacs$name=="contlim"] * V_cs^2 * convVEA
       dsum1sq <- dsum1sq + (intdatacd$dinttrap[intdatacd$iz==iz & intdatacd$errtype==errtype & intdatacd$name=="contlim"] * V_cd^2 * convVEA)^2
-      dsum1sq <- dsum1sq + (intdatacs$dinttrap[intdatacs$iz==iz & intdatacs$errtype==errtype & intdatacd$name=="contlim"] * V_cs^2 * convVEA)^2
+      dsum1sq <- dsum1sq + (intdatacs$dinttrap[intdatacs$iz==iz & intdatacs$errtype==errtype & intdatacs$name=="contlim"] * V_cs^2 * convVEA)^2
       sum2 <- sum2 + int2$inttrap[int2$kernel==kernel & int2$iz==iz & int2$errtype==errtype & int2$channel=="cd"] * V_cd^2 * convVAE
       sum2 <- sum2 + int2$inttrap[int2$kernel==kernel & int2$iz==iz & int2$errtype==errtype & int2$channel=="cs"] * V_cs^2 * convVAE
       dsum2sq <- dsum2sq + (int2$dinttrap[int2$kernel==kernel & int2$iz==iz & int2$errtype==errtype & int2$channel=="cd"] * V_cd^2 * convVAE)^2
       dsum2sq <- dsum2sq + (int2$dinttrap[int2$kernel==kernel & int2$iz==iz & int2$errtype==errtype & int2$channel=="cs"] * V_cs^2 * convVAE)^2
+      sum3 <- sum3 + int3$inttrap[int3$kernel==kernel & int3$iz==iz & int3$errtype==errtype & int3$channel=="cd"] * V_cd^2 * convVAE
+      sum3 <- sum3 + int3$inttrap[int3$kernel==kernel & int3$iz==iz & int3$errtype==errtype & int3$channel=="cs"] * V_cs^2 * convVAE
+      dsum3sq <- dsum3sq + (int3$dinttrap[int3$kernel==kernel & int3$iz==iz & int3$errtype==errtype & int3$channel=="cd"] * V_cd^2 * convVAE)^2
+      dsum3sq <- dsum3sq + (int3$dinttrap[int3$kernel==kernel & int3$iz==iz & int3$errtype==errtype & int3$channel=="cs"] * V_cs^2 * convVAE)^2
+      sum4 <- sum4 + intdatacdaic$inttrap[intdatacdaic$iz==iz & intdatacdaic$errtype==errtype & intdatacdaic$name=="contlim"] * V_cd^2 * convVEA
+      sum4 <- sum4 + intdatacsaic$inttrap[intdatacsaic$iz==iz & intdatacsaic$errtype==errtype & intdatacsaic$name=="contlim"] * V_cs^2 * convVEA
+      dsum4sq <- dsum4sq + (intdatacdaic$dinttrap[intdatacdaic$iz==iz & intdatacdaic$errtype==errtype & intdatacdaic$name=="contlim"] * V_cd^2 * convVEA)^2
+      dsum4sq <- dsum4sq + (intdatacsaic$dinttrap[intdatacsaic$iz==iz & intdatacsaic$errtype==errtype & intdatacsaic$name=="contlim"] * V_cs^2 * convVEA)^2
     }
-    newline <- data.frame(kernel=kernel, errtype=errtype, epsa = sum1, depsa = sqrt(dsum1sq), aeps=sum2, daeps=sqrt(dsum2sq))
+    newline <- data.frame(kernel=kernel, errtype=errtype, epsa = sum1, depsa = sqrt(dsum1sq), aeps=sum2, daeps=sqrt(dsum2sq), aepsaic=sum3, daepsaic=sqrt(dsum3sq), epsaaic=sum4, depsaaic=sqrt(dsum4sq))
     res <- rbind(res, newline)
   }
 }
-resDGtrap <- res
+resDGspline <- res
+# pdf("comparediffernetlimitsinclaic.pdf", title="")
 plotwitherror(x=1:8, y=res$epsa, dy=res$depsa, col=1, pch=c(rep(1, 4), rep(2, 4)), xlab="", xaxt="n", ylab="Gamma",
-              ylim=c(min(res$epsa-res$depsa, res$aeps-res$daeps), max(res$epsa+res$depsa, res$aeps+res$daeps)), xlim=c(1, 10))
+              ylim=c(min(res$epsa-res$depsa, res$aeps-res$daeps), max(res$epsa+res$depsa, res$aeps+res$daeps)), xlim=c(1, 11))
 plotwitherror(x=1:8+0.2, y=res$aeps, dy=res$daeps, col=2, pch=c(rep(1, 4), rep(2, 4)), rep=T)
-legend(x="right", legend=c("a, eps", "eps, a"), col=c(2, 1), pch=c(4, 4))
+plotwitherror(x=1:8+0.4, y=res$aepsaic, dy=res$daepsaic, col=4, pch=c(rep(1, 4), rep(2, 4)), rep=T)
+plotwitherror(x=1:8+0.6, y=res$epsaaic, dy=res$depsaaic, col=6, pch=c(rep(1, 4), rep(2, 4)), rep=T)
+legend(x="right", legend=c("a, eps, lin", "eps, a, lin", "a, eps, aic", "eps, a, aic"), col=c(2, 1, 4, 6), pch=c(4, 4, 4, 4))
 axis(side=1, at=1:8, labels=c(paste("sigmoid\n", errlist), paste("erf\n", errlist)), las=2)
-
+write.table(res, "tmpresint.csv")
+# dev.off()
+res
 ```
 
 
 
 ## int DM 
 
-The total moment is mostly compatible for both orders of the limits, there is some deviation for the result with purely statistical errors and the erf kernel. 
-I do not know where this deviation comes from, all points that enter the integral are comatible.
+The total moment is compatible for both orders of the limits
+The order $V, a, \epsilon$ leads to slightly lower results than the order $V, \epsilon, a$.
+
+<!-- , there is some deviation for the result with purely statistical errors and the erf kernel.  -->
+<!-- I do not know where this deviation comes from, all points that enter the integral are comatible. -->
 
 The result for the erf kernel is lower than that for the sigmoid kernel, but all results are still mostly compatible.
+The relative deviation is larger than for the total decay rate.
 
-The results for integration with splines and integration with the trapezoid rule are also compatible, and both show the same behaviour for the result with purely statistical errors and the erf kernel. 
+The results for integration with splines and integration with the trapezoid rule are also compatible.
+<!-- , and both show the same behaviour for the result with purely statistical errors and the erf kernel.  -->
 The trapeziodal integration leads to slightly lower results.
+
+The additonal factor of m_Ds in the conversion comes from ... (not yet explained in Nazario's notes)
 
 ### from splines
 
@@ -244,35 +312,50 @@ V_su <- V_cd
 G_F <- 1.1663788e-5
 m_Ds <- 1.96835
 errlist <- c("stat", "sys", "vol", "tot")
-res <- data.frame(kernel=c(), errtype=c(), epsa = c(), depsa = c(), aeps=c(), daeps=c())
+res <- data.frame(kernel=c(), errtype=c(), epsa = c(), depsa = c(), aeps=c(), daeps=c(), aepsaic=c(), daepsaic=c(), epsaaic=c(), depsaaic=c())
 
-convVAE <- m_Ds^3/96 /pi^4 *G_F^2
-convVEA <- 1/96 /pi^4 *G_F^2 / m_Ds^2
+convVAE <- m_Ds^3/96 /pi^4 *G_F^2 * m_Ds
+convVEA <- 1/96 /pi^4 *G_F^2 / m_Ds^2 * m_Ds
 
 for(kernel in c("sigmoid", "erf")) {
   for (errtype in errlist) {
-    intdatacd <- read.table(sprintf("tables_fnfour_15/DM_VEA_cd_%s_int.csv", kernel), header=TRUE)
-    intdatacs <- read.table(sprintf("tables_fnfour_15/DM_VEA_cs_%s_int.csv", kernel), header=TRUE)
+    intdatacd <- read.table(sprintf("tables_fnfour_12/DM_VEA_cd_%s_int.csv", kernel), header=TRUE)
+    intdatacs <- read.table(sprintf("tables_fnfour_12/DM_VEA_cs_%s_int.csv", kernel), header=TRUE)
+    intdatacdaic <- read.table(sprintf("tables_fnfour_12/DM_VEA_cd_%s_int_aic.csv", kernel), header=TRUE)
+    intdatacsaic <- read.table(sprintf("tables_fnfour_12/DM_VEA_cs_%s_int_aic.csv", kernel), header=TRUE)
     # int2 <- read.table("~/Documents/heavymesons/scripts/analysis/tables/DG_VAE_int.csv", header=TRUE)
-    int2 <- read.table("tables/DM_VAE_int.csv", header=TRUE)
+    int2 <- read.table("tables_fnfour_12/DM_VAE_int.csv", header=TRUE)
+    int3 <- read.table("tables_fnfour_12/DM_VAE_int_aic.csv", header=TRUE)
     
     
     sum1 <- 0
     dsum1sq <- 0
     sum2 <- 0
     dsum2sq <- 0
+    sum3 <- 0
+    dsum3sq <- 0
+    sum4 <- 0
+    dsum4sq <- 0
     
-    for(iz in 0:2) {
+    for(iz in 0:3) {
       sum1 <- sum1 + intdatacd$intspline[intdatacd$iz==iz & intdatacd$errtype==errtype & intdatacd$name=="contlim"] * V_cd^2 * convVEA
-      sum1 <- sum1 + intdatacs$intspline[intdatacs$iz==iz & intdatacs$errtype==errtype & intdatacd$name=="contlim"] * V_cs^2 * convVEA
+      sum1 <- sum1 + intdatacs$intspline[intdatacs$iz==iz & intdatacs$errtype==errtype & intdatacs$name=="contlim"] * V_cs^2 * convVEA
       dsum1sq <- dsum1sq + (intdatacd$dintspline[intdatacd$iz==iz & intdatacd$errtype==errtype & intdatacd$name=="contlim"] * V_cd^2 * convVEA)^2
-      dsum1sq <- dsum1sq + (intdatacs$dintspline[intdatacs$iz==iz & intdatacs$errtype==errtype & intdatacd$name=="contlim"] * V_cs^2 * convVEA)^2
+      dsum1sq <- dsum1sq + (intdatacs$dintspline[intdatacs$iz==iz & intdatacs$errtype==errtype & intdatacs$name=="contlim"] * V_cs^2 * convVEA)^2
       sum2 <- sum2 + int2$intspline[int2$kernel==kernel & int2$iz==iz & int2$errtype==errtype & int2$channel=="cd"] * V_cd^2 * convVAE
       sum2 <- sum2 + int2$intspline[int2$kernel==kernel & int2$iz==iz & int2$errtype==errtype & int2$channel=="cs"] * V_cs^2 * convVAE
       dsum2sq <- dsum2sq + (int2$dintspline[int2$kernel==kernel & int2$iz==iz & int2$errtype==errtype & int2$channel=="cd"] * V_cd^2 * convVAE)^2
       dsum2sq <- dsum2sq + (int2$dintspline[int2$kernel==kernel & int2$iz==iz & int2$errtype==errtype & int2$channel=="cs"] * V_cs^2 * convVAE)^2
+      sum3 <- sum3 + int3$intspline[int3$kernel==kernel & int3$iz==iz & int3$errtype==errtype & int3$channel=="cd"] * V_cd^2 * convVAE
+      sum3 <- sum3 + int3$intspline[int3$kernel==kernel & int3$iz==iz & int3$errtype==errtype & int3$channel=="cs"] * V_cs^2 * convVAE
+      dsum3sq <- dsum3sq + (int3$dintspline[int3$kernel==kernel & int3$iz==iz & int3$errtype==errtype & int3$channel=="cd"] * V_cd^2 * convVAE)^2
+      dsum3sq <- dsum3sq + (int3$dintspline[int3$kernel==kernel & int3$iz==iz & int3$errtype==errtype & int3$channel=="cs"] * V_cs^2 * convVAE)^2
+      sum4 <- sum4 + intdatacdaic$intspline[intdatacdaic$iz==iz & intdatacdaic$errtype==errtype & intdatacdaic$name=="contlim"] * V_cd^2 * convVEA
+      sum4 <- sum4 + intdatacsaic$intspline[intdatacsaic$iz==iz & intdatacsaic$errtype==errtype & intdatacsaic$name=="contlim"] * V_cs^2 * convVEA
+      dsum4sq <- dsum4sq + (intdatacdaic$dintspline[intdatacdaic$iz==iz & intdatacdaic$errtype==errtype & intdatacdaic$name=="contlim"] * V_cd^2 * convVEA)^2
+      dsum4sq <- dsum4sq + (intdatacsaic$dintspline[intdatacsaic$iz==iz & intdatacsaic$errtype==errtype & intdatacsaic$name=="contlim"] * V_cs^2 * convVEA)^2
     }
-    newline <- data.frame(kernel=kernel, errtype=errtype, epsa = sum1, depsa = sqrt(dsum1sq), aeps=sum2, daeps=sqrt(dsum2sq))
+    newline <- data.frame(kernel=kernel, errtype=errtype, epsa = sum1, depsa = sqrt(dsum1sq), aeps=sum2, daeps=sqrt(dsum2sq), aepsaic=sum3, daepsaic=sqrt(dsum3sq), epsaaic=sum4, depsaaic=sqrt(dsum4sq))
     res <- rbind(res, newline)
   }
 }
@@ -282,6 +365,24 @@ plotwitherror(x=1:8, y=res$epsa, dy=res$depsa, col=1, pch=c(rep(1, 4), rep(2, 4)
 plotwitherror(x=1:8+0.2, y=res$aeps, dy=res$daeps, col=2, pch=c(rep(1, 4), rep(2, 4)), rep=T)
 legend(x="right", legend=c("a, eps", "eps, a"), col=c(2, 1), pch=c(4, 4))
 axis(side=1, at=1:8, labels=c(paste("sigmoid\n", errlist), paste("erf\n", errlist)), las=2)
+
+DMtmp <- res[res$errtype=="tot", ]
+DMtmp$norm <- c(F, F)
+newtmp <- data.frame(kernel=c("sigmoid", "erf"), errtype=c("tot", "tot"), epsa=DMtmp$epsa/DGtmp$epsa, 
+                     depsa=sqrt((DMtmp$epsa*DGtmp$depsa/tmp$epsa^2)^2+(DMtmp$depsa/DGtmp$epsa)^2),
+                     aeps=DMtmp$aeps/DGtmp$aeps, 
+                     daeps=sqrt((DMtmp$aeps*DGtmp$daeps/DGtmp$aeps^2)^2+(DMtmp$daeps/DGtmp$aeps)^2), 
+                     epsaaic=DMtmp$epsaaic/DGtmp$epsaaic, 
+                     depsaaic=sqrt((DMtmp$epsaaic*DGtmp$depsaaic/tmp$epsaaic^2)^2+(DMtmp$depsaaic/DGtmp$epsaaic)^2),
+                     aepsaic=DMtmp$aepsaic/DGtmp$aepsaic, 
+                     daepsaic=sqrt((DMtmp$aepsaic*DGtmp$daepsaic/DGtmp$aepsaic^2)^2+(DMtmp$daepsaic/DGtmp$aepsaic)^2))
+newtmp$norm=c(T, T)
+names(newtmp)
+names(DMtmp)
+newtmp <- rbind(newtmp, DMtmp)
+newtmp
+write.table(newtmp, "compareDMnormalizednonnormalized_christiane.csv", col.names=T, row.names=F)
+getwd()
 
 ```
 
@@ -302,10 +403,10 @@ convVEA <- 1/96 /pi^4 *G_F^2 / m_Ds^2
 
 for(kernel in c("sigmoid", "erf")) {
   for (errtype in errlist) {
-    intdatacd <- read.table(sprintf("tables_fnfour_15/DM_VEA_cd_%s_int.csv", kernel), header=TRUE)
-    intdatacs <- read.table(sprintf("tables_fnfour_15/DM_VEA_cs_%s_int.csv", kernel), header=TRUE)
+    intdatacd <- read.table(sprintf("tables_fnfour_12/DM_VEA_cd_%s_int.csv", kernel), header=TRUE)
+    intdatacs <- read.table(sprintf("tables_fnfour_12/DM_VEA_cs_%s_int.csv", kernel), header=TRUE)
     # int2 <- read.table("~/Documents/heavymesons/scripts/analysis/tables/DG_VAE_int.csv", header=TRUE)
-    int2 <- read.table("tables/DM_VAE_int.csv", header=TRUE)
+    int2 <- read.table("tables_fnfour_12/DM_VAE_int.csv", header=TRUE)
     
     
     sum1 <- 0
@@ -339,7 +440,7 @@ axis(side=1, at=1:8, labels=c(paste("sigmoid\n", errlist), paste("erf\n", errlis
 
 ## summary integral different lattice spacings DG
 
-Here, I show the total decay rate for all lattice spacings for all kernels, channels and error types.
+Here, I show the total decay rate for all lattice spacings for all kernels, channels and error types. The limit $\epsilon \to 0$ has already been taken.
 Not all results are compatible with the result in the continuum limit, but we see that the continuum limit is quite flat.
 
 ```{r}
@@ -365,7 +466,7 @@ for(errtype in c("stat", "sys", "vol", "tot")) {
 
 ## summary integral different lattice spacings DM
 
-Here, I show the total moment for all latitce spacings for all kernels, channels and error types.
+Here, I show the total moment for all latitce spacings for all kernels, channels and error types. The limit $\epsilon \to 0$ has already been taken.
 Not all results are compatible with the result in the continuum limit.
 
 The continuum limit is not as flat as it was for the decay rate, but overall it still seems flat, and like we have it under control.

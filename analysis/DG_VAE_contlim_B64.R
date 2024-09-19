@@ -5,7 +5,7 @@ zlist <- c(3, 0, 1, 2)
 errlist <- c("stat", "sys", "vol", "tot")
 doplot <- T
 fnlin <- function(par, x, boot.R, ...) par[1] + par[2] * x
-fncon <- function(par, x, boot.R, ...) par[1]
+fncon <- function(par, x, boot.R, ...) par[1] + 0*x
 
 
 nerr <- rep(2, 1)
