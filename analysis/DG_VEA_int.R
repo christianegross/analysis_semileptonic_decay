@@ -1,6 +1,16 @@
 source("/hiskp4/gross/heavymesons/helpscripts/integrate.R")
 source("/hiskp4/gross/heavymesons/helpscripts/splineintegration_functions.R")
 library("hadron")
+
+
+comment <- ""
+args <- commandArgs(trailingOnly = TRUE)
+if(length(args) >= 1) comment <- args[1]
+if(length(args) == 2) addition <- args[2]
+if(length(args) > 2) stop("pass at most two command line argument")
+
+
+
 zlist <- c(3, 0, 1, 2)
 errlist <- c("stat", "sys", "vol", "tot")
 doplot <- T
@@ -10,10 +20,18 @@ fncon <- function(par, x, boot.R, ...) par[1]
 
 savefolder <- "tables_fnfour_12"
 
-
+# from B64
 upperboundarycd <- 0.8724
 upperboundarycs <- 0.7770
+# from contlim
+if (grepl("boundcontlim", addition, fixed=T)) upperboundarycd <- 0.8431
+if (grepl("boundcontlim", addition, fixed=T)) upperboundarycs <- 0.7347
+
+
 channels <- c("cd", "cs")
+kernels <- c("sigmoid", "erf")
+if (grepl("comb", comment, fixed=T)) kernels <- c("combined")
+
 channelboundaries <- c(upperboundarycd, upperboundarycs)
 continue <- c(T, F)
 replacelower <- c(F, T)
@@ -25,7 +43,7 @@ pdf("plots/DG_VEA_int.pdf", title="")
 for(channel_index in seq_along(channels)) {
   channel <- channels[channel_index]
   upperbound <- channelboundaries[channel_index]
-    for(kernel in c("sigmoid", "erf")) {
+    for(kernel in kernels) {
 
 B64 <- readRDS(sprintf("%s/DG_VEA_epslim_converted_B64_%s_%s.RDS", savefolder, channel, kernel))
 C80 <- readRDS(sprintf("%s/DG_VEA_epslim_converted_C80_%s_%s.RDS", savefolder, channel, kernel))
@@ -79,7 +97,7 @@ for (i in seq_along(enslist)){
           masktable[is.na(masktable)] <- F
           y[index+1] <- ens$DGDq2gev[mask]
           dy[index+1] <- ens$dDGDq2gev[mask]
-          try(bsamples[, index+1] <- ens$datgev[, mask])
+          try(bsamples[, index+1] <- ens$datgev[, which(mask)])
           x[index+1] <- mytable$q[masktable]^2
         } else if(!is.na(mytable$q[abs(mytable$th - th) < 1e-2][1]^2) && names[i] == "contlim") {
           mask <- abs(ens$th - th) < 1e-2 & ens$iz == iz & ens$errtype==errtype
