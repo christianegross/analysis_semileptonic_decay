@@ -21,6 +21,7 @@ integratesplinesfromcoefficients <- function(coefficients, knots) {
 
 splineintegral <- function(yval, xval, continue=FALSE, higherlimit=0, replacelower=FALSE, lowerlimit=0, replaceindex=0) {
     stopifnot(!(continue && replacelower))
+    if(any(is.na(yval))) return(NA)
     spline <- interpSpline(xval, yval)
     if(!(continue || replacelower)) {
 #~         print("normal")

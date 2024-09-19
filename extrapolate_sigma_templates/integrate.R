@@ -5,6 +5,7 @@
 trapezoidal <- function(yval, xval, continue=FALSE, higherlimit=0, replacelower=FALSE, lowerlimit=0, replaceindex=0) {
     stopifnot(!(continue && replacelower))
     stopifnot(length(xval)==length(yval))
+    if(any(is.na(yval))) return(NA)
     # stopifnot(xval==sort(x=xval) || xval==rev(sort(x=xval)))
     sum <- 0
     

@@ -57,7 +57,7 @@ tab$t1 <- tab$t1 - 1
 tab$t2 <- tab$t2 - 1
 # knitr::kable(tab)
 
-ensinfos <- data.frame(ens=c("cB211.07.64", "cB211.07.96", "cC211.06.80", "cD211.054.96", "cE211.044.112", "cB211.07.48"), 
+ensinfos <- data.frame(ens=c("cB211.07.64", "cB211.07.96", "cC211.06.80_600", "cD211.054.96", "cE211.044.112_300", "cB211.07.48"), 
                        name=c("B64", "B96", "C80", "D96", "E112", "B48"), afm=c(0.07957, 0.07957, 0.06821, 0.05692, 0.04891, 0.07957), 
                        uplim=c(15, 45, 15, 15, 15, 5), lowlim=c(15, 15, 15, 15, 15, 5), 
                        kappa=c(0.1394265, 0.1394265, 0.13875285, 0.137972174, 0.13741288, 0.1394265),
@@ -96,6 +96,7 @@ Instead of the physical $\eta$, we calculate the mass of the $\eta_s$.
 index <- 1
 # for (ens in c("cB211.07.48")) {
 for (ens in unique(tab$ensemble)) {
+  print(ens)
   Ds <- readcffrompreprocessed(realfile=sprintf("~/Documents/heavymesons/data/meson/%s/4Pts_meson_data/Ds.dat", ens))
   Ds <- bootstrap.cf(Ds, boot.R = 300)
   # Ds <- jackknife.cf(Ds)
@@ -117,13 +118,14 @@ for (ens in unique(tab$ensemble)) {
   reslist[["info"]]$L[index] <- ensinfos$L[ensinfos$ens==ens]
   reslist[["info"]]$B_ens[index] <- ensinfos$B_ens[ensinfos$ens==ens]
   for (name in c("D", "eta", "K", "pi", "Ds_sl", "D_sl", "eta_sl", "K_sl", "pi_sl")) {
+    print(name)
     meson <- readcffrompreprocessed(realfile=sprintf("~/Documents/heavymesons/data/meson/%s/4Pts_meson_data/%s.dat", ens, name))
     meson <- bootstrap.cf(meson, boot.R = 300)
     # meson <- jackknife.cf(meson)
     meson <- bootstrap.effectivemass(meson)
     meson <- fit.effectivemass(meson, t1=tab$t1[tab$ensemble==ens & tab$name==name], t2=tab$t2[tab$ensemble==ens & tab$name==name])
-    print(paste("fit region", tab$t1[tab$ensemble==ens & tab$name==name], tab$t2[tab$ensemble==ens & tab$name==name],
-                "chi^2_red", sprintf("%.3f", meson$effmassfit$chisqr/meson$effmassfit$dof)))
+    # print(paste("fit region", tab$t1[tab$ensemble==ens & tab$name==name], tab$t2[tab$ensemble==ens & tab$name==name],
+    #             "chi^2_red", sprintf("%.3f", meson$effmassfit$chisqr/meson$effmassfit$dof)))
     plotregion <- na.omit(meson$effMass[ensinfos$lowlim[ensinfos$ens==ens]:(meson$Time/2-ensinfos$uplim[ensinfos$ens==ens])])
     plot(meson, xlab="t/a", ylab="ameff",
          ylim=c(min(plotregion), max(plotregion)), main=paste(name, ensinfos$name[ensinfos$ens==ens]))
@@ -146,8 +148,8 @@ respretty <- data.frame(ens=res$ens, name=res$name,
 
 
 knitr::kable(respretty)
-write.table(x=res, file="calculatedmesonmasses.csv", row.names=FALSE)
-saveRDS(object=reslist, file="calculatedmesonmasses.RDS")
+write.table(x=res, file="calculatedmesonmasses_more_stat.csv", row.names=FALSE)
+saveRDS(object=reslist, file="calculatedmesonmasses_more_stat.RDS")
 ```
 
 ## Plot all ensembles together
@@ -155,8 +157,8 @@ saveRDS(object=reslist, file="calculatedmesonmasses.RDS")
 By rescaling the time with the lattice spacing, we can plot the masses of all ensembles together and find one common set of boundaries per ensemble.
 
 ```{r masscombined}
-res <- read.table("calculatedmesonmasses.csv", header=T)
-reslist <- readRDS("calculatedmesonmasses.RDS")
+res <- read.table("calculatedmesonmasses_more_stat.csv", header=T)
+reslist <- readRDS("calculatedmesonmasses_more_stat.RDS")
 names <- c("Ds", "D", "eta", "K", "pi", "Ds_sl", "D_sl", "eta_sl", "K_sl", "pi_sl")
 limits <- data.frame(meson=c("Ds", "D", "eta", "K", "pi", "Ds_sl", "D_sl", "eta_sl", "K_sl", "pi_sl"), 
                      lower=c(9, 8, 9, 9, 9, 9, 8, 9, 9, 9), 
@@ -197,7 +199,7 @@ limits[[paste0("lowerlatticeunits", ens)]] <- round(limits$lower/reslist$info$af
 limits[[paste0("upperlatticeunits", ens)]] <- round(limits$upper/reslist$info$afm[reslist$info$name==ens]/fmtogev)
 }
 # limits
-write.table(limits, "proposeboundaries.csv", row.names=F)
+write.table(limits, "proposeboundaries_more_stat.csv", row.names=F)
 ```
 ## Continuum limit
 
@@ -243,7 +245,8 @@ for (name in c("Ds", "D", "eta", "K", "pi")) {
   }
   index <- index+1
 }
-saveRDS(object=contlimlist, file="contlimmesonmasses.RDS")
+saveRDS(object=contlimlist, file="contlimmesonmasses_more_stat.RDS")
+summary
 ```
 
 

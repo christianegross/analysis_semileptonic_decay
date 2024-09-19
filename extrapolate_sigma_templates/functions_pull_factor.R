@@ -233,7 +233,7 @@ determinesyserrfinitevolume <- function(resultpath1, filenames1, nerr1, L1, resu
             
             ## save result
             result <- rbind(result, data.frame(w=rep(data1[[2+iset]]$metadata$w, neps),
-                                               nerr=rep(nerr[index], neps), iz=rep(iz, neps), icomb=rep(icomb, neps),
+                                               nerr=rep(nerr1[index], neps), iz=rep(iz, neps), icomb=rep(icomb, neps),
                                                th=rep(th[index], neps), epsilon=unique(c(data1[[2+iset]]$epsilons, data2[[2+iset]]$epsilons)), P=P, Delta=Delta,
                                                L1=rep(L1[index], neps), L2=rep(L2[index], neps), dDGamma2=dDGamma2))
             
