@@ -232,9 +232,10 @@ plot_reconstruction <- function(path, nset=1, neps=17, nnorm=3, plotnorm=c(-1), 
 
 
 plotZ <- function(path, main="", mode="DG") {
-    if(mode!="DG" && mode!="DM") stop("invalid mode, must be DM or DG")
+    if(mode!="DG" && mode!="DM" && mode!="DM2") stop("invalid mode, must be DM2, DM or DG")
     if(mode=="DG") filename <- sprintf("%s/Z.dat", path)
     if(mode=="DM") filename <- sprintf("%s/EM_Z.dat", path)
+    if(mode=="DM2") filename <- sprintf("%s/EM_Z2.dat", path)
     Z <- try(read.table(filename, fill=TRUE,
                     col.names=c("m", "dm", "iset", "w", "iz", "t", "z", "dz",
                     paste0("column", 9:16))))
@@ -247,10 +248,13 @@ plotZ <- function(path, main="", mode="DG") {
                     rep=TRUE, col=2, pch=2)
     plotwitherror(x=Z$t[Z$iz==2], y=Z$z[Z$iz==2], dy=Z$dz[Z$iz==2],
                     rep=TRUE, col=4, pch=4)
-    if(mode=="DM") plotwitherror(x=Z$t[Z$iz==3], y=Z$z[Z$iz==3], dy=Z$dz[Z$iz==3],
+    if(mode=="DM" || mode=="DM2") plotwitherror(x=Z$t[Z$iz==3], y=Z$z[Z$iz==3], dy=Z$dz[Z$iz==3],
                     rep=TRUE, col=5, pch=5)
+    if(mode=="DM2") plotwitherror(x=Z$t[Z$iz==4], y=Z$z[Z$iz==4], dy=Z$dz[Z$iz==4],
+                    rep=TRUE, col=6, pch=6)
     if(mode=="DG") legend(x="topright", legend=c("Z_0", "Z_1", "Z_2"), col=c(1, 2, 4), pch=c(1, 2, 4))
     if(mode=="DM") legend(x="topright", legend=c("Z_0", "Z_1", "Z_2", "Z_3"), col=c(1, 2, 4, 5), pch=c(1, 2, 4, 5))
+    if(mode=="DM2") legend(x="topright", legend=c("Z_0", "Z_1", "Z_2", "Z_3", "Z_4"), col=c(1, 2, 4, 5, 6), pch=c(1, 2, 4, 5, 6))
 }
 
 
@@ -343,11 +347,13 @@ plot_stability_AA0_sets <- function(pathlist, nset=1, neps=17, nnorm=3, inputfil
 plotZsets <- function(pathlist, main="", mode="DG", iz=0, comments="") {
     if(mode=="DG") stopifnot(0<=iz && iz<=2)
     if(mode=="DM") stopifnot(0<=iz && iz<=3)
+    if(mode=="DM") stopifnot(0<=iz && iz<=4)
     mycolours <- c("red", "blue", "green", "cyan", "pink", "#D2691E", "#556B2F", rep("black", 100))
     if(mode!="DG" && mode!="DM") stop("invalid mode, must be DM or DG")
     for(i in seq_along(pathlist)) {
         if(mode=="DG") filename <- sprintf("%s/Z.dat", pathlist[i])
         if(mode=="DM") filename <- sprintf("%s/EM_Z.dat", pathlist[i])
+        if(mode=="DM2") filename <- sprintf("%s/EM_Z2.dat", pathlist[i])
         Z <- try(read.table(filename, fill=TRUE,
                         col.names=c("m", "dm", "iset", "w", "iz", "t", "z", "dz",
                         paste0("column", 9:16))))

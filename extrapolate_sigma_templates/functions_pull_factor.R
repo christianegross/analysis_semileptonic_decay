@@ -1,6 +1,5 @@
-
-source("/home/gross/Documents/heavymesons/scripts/extrapolate_sigma_templates/calc_DGDq2.R")
 library("hadron")
+source("/hiskp4/gross/heavymesons/helpscripts/read_in_binary.R")
 
 erf <- function(x) 2 * pnorm(x * sqrt(2)) - 1
 
@@ -54,7 +53,11 @@ determinesyserrfinitevolumeextrapolated <- function(resultpath1, filenames1, ner
     NDG <- 5
     zlist=c(0, 1, 2, 3, 4)
   }
-  else stop("mode has to be DG or DM")
+  else if(mode=="DM2")  {
+    NDG <- 6
+    zlist=c(0, 1, 2, 3, 4, 5)
+  }
+  else stop("mode has to be DG or DM or DM2")
   
   
   result <- data.frame(w=NA, nerr=NA, iz=NA, icomb=NA, th = NA, epsilon=NA, P=NA, Delta=NA, L1=NA, L2=NA, dDGamma2=NA)
@@ -62,7 +65,7 @@ determinesyserrfinitevolumeextrapolated <- function(resultpath1, filenames1, ner
   # resultdat <- list(tsnk=c(), Nt=c(), w=c(), nerr=c(), iz=c(), icomb=c(), th=c(), includesys = c(), DGDq2 = c(), dDGDq2 = c(), dat = array(NA, dim=c(1000, length(tsnk)*2*length(isets)*length(icomb)*4)))
   parindex <- 1
   for (index in seq(1, length(filenames1))){
-    data1 <- try(read_in_DGDq2(filename=filenames1[index], write=FALSE, resultpath=resultpath1[index], NDG = 5))
+    data1 <- try(read_in_DGDq2(filename=filenames1[index], write=FALSE, resultpath=resultpath1[index], NDG = NDG))
     print(paste0(resultpath2[index], "/", filenames2[index]))
     data2 <- try(readRDS(file=paste0(resultpath2[index], "/", filenames2[index])))
     if(!inherits(x=data1, what="try-error") && !inherits(x=data2, what="try-error")) {
@@ -165,7 +168,11 @@ determinesyserrfinitevolume <- function(resultpath1, filenames1, nerr1, L1, resu
     NDG <- 5
     zlist=c(0, 1, 2, 3, 4)
   }
-  else stop("mode has to be DG or DM")
+  else if(mode=="DM2")  {
+    NDG <- 6
+    zlist=c(0, 1, 2, 3, 4, 5)
+  }
+  else stop("mode has to be DG or DM or DM2")
   
   
   result <- data.frame(w=NA, nerr=NA, iz=NA, icomb=NA, th = NA, epsilon=NA, P=NA, Delta=NA, L1=NA, L2=NA, dDGamma2=NA)

@@ -171,7 +171,7 @@ plotlistfits <- function(fitlist, xlim=c(NA), ylim=c(NA), cols=seq(1, length(fit
         plotwitherror(x=0, y=fitlist[[i]]$t0[1], dy=fitlist[[i]]$se[1], col=cols[i], lwd=2, rep=T, ...)
     }
     if(drawlegend) do.call(what="legend", args=legendargs)
-
+    
 }
 
 
