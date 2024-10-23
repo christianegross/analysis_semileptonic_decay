@@ -6,7 +6,7 @@ res <- data.frame(channel=c(), kernel=c(), theta=c(), errtype=c(), iz=c(), DGDq2
 
 index <- 1
 
-savefolder <- "tables_fnfour_12"
+savefolder <- "tables_fnfour_20_old"
 dividemass <- F
 comment <- ""
 if(dividemass) comment <- "_dividemass"

@@ -6,16 +6,15 @@ source("/hiskp4/gross/heavymesons/helpscripts/splineintegration_functions.R")
 
 comment <- ""
 args <- commandArgs(trailingOnly = TRUE)
-if(length(args) >= 1) comment <- args[1]
-if(length(args) == 2) addition <- args[2]
-if(length(args) > 2) stop("pass at most two command line argument")
+if(length(args) == 1) comment <- args[1]
+if(length(args) > 1) stop("pass at most one command line argument")
 
 
 errlist <- c("stat", "sys", "vol", "tot")
 zlist <- 0:3
 dividemass <- F
 if(dividemass) comment <- "_dividemass"
-savefolder <- "tables_fnfour_12"
+savefolder <- "tables_fnfour_20_old"
 
 mytable <- read.table(sprintf("%s/DG_VAE_epslim%s.csv", savefolder, comment), header=TRUE)
 mydata <- readRDS(sprintf("%s/DG_VAE_epslim%s.RDS", savefolder, comment))
@@ -27,14 +26,13 @@ reslist <- list()
 upperboundarycd <- 0.8724
 upperboundarycs <- 0.7770
 # from contlim
-if (grepl("boundcontlim", addition, fixed=T)) upperboundarycd <- 0.8431
-if (grepl("boundcontlim", addition, fixed=T)) upperboundarycs <- 0.7347
+if (grepl("boundcontlim", comment, fixed=T)) upperboundarycd <- 0.8431
+if (grepl("boundcontlim", comment, fixed=T)) upperboundarycs <- 0.7347
 
 
 channels <- c("cd", "cs")
 kernels <- c("sigmoid", "erf")
 if (grepl("comb", comment, fixed=T)) kernels <- c("combined")
-
 channelboundaries <- c(upperboundarycd, upperboundarycs)
 continue <- c(T, F)
 replacelower <- c(F, T)
@@ -57,7 +55,7 @@ for(channel_index in seq_along(channels)) {
         bsamples <- array(rep(0, 11000), dim=c(1000, 11))
         y <- c(0, mytable$DGDq2[mytable$iz==iz & mytable$errtype==errtype & mytable$channel==channel & mytable$kernel==kernel])
         dy <- c(0, mytable$dDGDq2[mytable$iz==iz & mytable$errtype==errtype & mytable$channel==channel & mytable$kernel==kernel])
-        x <- c(0, mytable$theta[mytable$iz==iz & mytable$errtype==errtype & mytable$channel==channel & mytable$kernel==kernel]*0.0934516)^2
+        x <- c(0, mytable$w[mytable$iz==iz & mytable$errtype==errtype & mytable$channel==channel & mytable$kernel==kernel])^2*m_Ds^2
         bsamples[, 2:11] <- mydata$bsDGDq2[, which(mydata$iz==iz & mydata$errtype==errtype & mydata$channel==channel & mydata$kernel==kernel)]
         
         spline <- interpSpline(x, y)
@@ -87,8 +85,8 @@ for(channel_index in seq_along(channels)) {
                            replacelower=replacelower[channel_index], higherlimit = upperbound, 
                            lowerlimit=upperbound, replaceindex=replaceindex[channel_index])
         res <- rbind(res, data.frame(channel=channel, kernel=kernel, ensno=confcounter, errtype=errtype, iz=iz, 
-                                     intspline=meanintspline, dintspline=sd(bsintspline), intbsspline=mean(bsintspline), 
-                                     inttrap=meaninttrap, dinttrap=sd(bsinttrap), intbstrap=mean(bsinttrap)))
+                                     intspline=meanintspline, dintspline=sd(bsintspline, na.rm=T), intbsspline=mean(bsintspline, na.rm=T), 
+                                     inttrap=meaninttrap, dinttrap=sd(bsinttrap, na.rm=T), intbstrap=mean(bsinttrap, na.rm=T)))
         
         reslist[[paste0(channel, kernel, errtype, "iz", iz, "bsintspline")]] <- bsintspline
         reslist[[paste0(channel, kernel, errtype, "iz", iz, "spline")]] <- spline

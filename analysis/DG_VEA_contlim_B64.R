@@ -12,7 +12,7 @@ fitfn <- fnlin
 par.guess <- c(1, 1)
 comment <- "linear"
 
-savefolder <- "tables_fnfour_12"
+savefolder <- "tables_fnfour_20_old"
 
 pdf("plots/DG_VEA_contlim.pdf", title="")
 

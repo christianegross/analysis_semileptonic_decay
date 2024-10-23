@@ -20,7 +20,7 @@ replacelower <- c(F, T)
 replaceindex <- c(0, 10)
 confcounter <- 1
 
-pdf("plots/DG_VEA_int.pdf", title="")
+pdf("plots/DG_VEA_int_aic.pdf", title="")
 
 for(channel_index in seq_along(channels)) {
   channel <- channels[channel_index]
@@ -31,13 +31,13 @@ B64 <- readRDS(sprintf("%s/DG_VEA_epslim_converted_B64_%s_%s.RDS", savefolder, c
 C80 <- readRDS(sprintf("%s/DG_VEA_epslim_converted_C80_%s_%s.RDS", savefolder, channel, kernel))
 D96 <- readRDS(sprintf("%s/DG_VEA_epslim_converted_D96_%s_%s.RDS", savefolder, channel, kernel))
 E112 <- readRDS(sprintf("%s/DG_VEA_epslim_converted_E112_%s_%s.RDS", savefolder, channel, kernel))
-contlim <- readRDS(sprintf("%s/DG_VEA_contlim_%s_%s_linear.RDS", savefolder, channel, kernel))
+contlim <- readRDS(sprintf("%s/DG_VEA_contlim_%s_%s_aic.RDS", savefolder, channel, kernel))
 
 B64table <- read.table(sprintf("%s/DG_VEA_epslim_converted_B64_%s_%s.csv", savefolder, channel, kernel), header=TRUE)
 C80table <- read.table(sprintf("%s/DG_VEA_epslim_converted_C80_%s_%s.csv", savefolder, channel, kernel), header=TRUE)
 D96table <- read.table(sprintf("%s/DG_VEA_epslim_converted_D96_%s_%s.csv", savefolder, channel, kernel), header=TRUE)
 E112table <- read.table(sprintf("%s/DG_VEA_epslim_converted_E112_%s_%s.csv", savefolder, channel, kernel), header=TRUE)
-contlimtable <- read.table(sprintf("%s/DG_VEA_contlim_%s_%s_linear.csv", savefolder, channel, kernel))
+contlimtable <- read.table(sprintf("%s/DG_VEA_contlim_%s_%s_aic.csv", savefolder, channel, kernel))
 
 B64$L <- rep(64, length(B64$Nt))
 C80$L <- rep(80, length(C80$Nt))
@@ -56,7 +56,8 @@ reslist <- list()
 
 confcounter <- 1
 thetas <- c(seq(1, 9), 9.5)
-for (i in seq_along(enslist)){
+#~ for (i in seq_along(enslist)){
+for (i in c(5)){
   ens <- enslist[[i]]
   mytable <- tablelist[[i]]
   for (errtype in errlist) {
@@ -86,9 +87,9 @@ for (i in seq_along(enslist)){
           mask[is.na(mask)] <- F
           masktable <- abs(mytable$th - th) < 1e-2 & mytable$iz == iz & mytable$errtype==errtype
           masktable[is.na(masktable)] <- F
-          y[index+1] <- ens$fit[[which(mask)]]$t0
-          dy[index+1] <- ens$fit[[which(mask)]]$se
-          try(bsamples[, index+1] <- ens$fit[[which(mask)]]$t[, 1])
+          y[index+1] <- ens$fit[[which(mask)]]$weighted$mean
+          dy[index+1] <- ens$fit[[which(mask)]]$weighted$sd
+          try(bsamples[, index+1] <- ens$fit[[which(mask)]]$weighted$bootsamples)
           x[index+1] <- mytable$q[masktable]^2
         } else {
           print(sprintf("failure for th %s", index))
@@ -122,8 +123,8 @@ for (i in seq_along(enslist)){
                            replacelower=replacelower[channel_index], higherlimit = upperbound, 
                            lowerlimit=upperbound, replaceindex=replaceindex[channel_index])
       res <- rbind(res, data.frame(name=names[i], ensno=i, errtype=errtype, iz=iz, 
-                                   intspline=meanintspline, dintspline=sd(bsintspline), intbsspline=mean(bsintspline), 
-                                   inttrap=meaninttrap, dinttrap=sd(bsinttrap), intbstrap=mean(bsinttrap)))
+                                   intspline=meanintspline, dintspline=sd(bsintspline, na.rm=T), intbsspline=mean(bsintspline, na.rm=T), 
+                                   inttrap=meaninttrap, dinttrap=sd(bsinttrap, na.rm=T), intbstrap=mean(bsinttrap, na.rm=T)))
       
       reslist[[paste0(names[i], errtype, "iz", iz, "bsintspline")]] <- bsintspline
       reslist[[paste0(names[i], errtype, "iz", iz, "spline")]] <- spline
@@ -135,10 +136,10 @@ for (i in seq_along(enslist)){
 
 res <- res[-1, ]
 res
-write.table(x=res, file=sprintf("%s/DG_VEA_%s_%s_int.csv", savefolder, channel, kernel), row.names=F, col.names=T)
+write.table(x=res, file=sprintf("%s/DG_VEA_%s_%s_int_aic.csv", savefolder, channel, kernel), row.names=F, col.names=T)
 
 reslist$info <- res
-saveRDS(object=reslist, file=sprintf("%s/DG_VEA_%s_%s_int.RDS", savefolder, channel, kernel)) 
+saveRDS(object=reslist, file=sprintf("%s/DG_VEA_%s_%s_int_aic.RDS", savefolder, channel, kernel)) 
 
 for(errtype in errlist) {
   mask <- res$errtype==errtype

@@ -7,7 +7,7 @@ source("/hiskp4/gross/heavymesons/helpscripts/splineintegration_functions.R")
 errlist <- c("stat", "sys", "vol", "tot")
 zlist <- 0:4
 dividemass <- F
-comment <- ""
+comment <- "_aic"
 if(dividemass) comment <- "_dividemass"
 savefolder <- "tables_fnfour_12"
 

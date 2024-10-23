@@ -1,14 +1,14 @@
 source("/hiskp4/gross/heavymesons/helpscripts/integrate.R")
 source("/hiskp4/gross/heavymesons/helpscripts/splineintegration_functions.R")
 library("hadron")
-zlist <- c(3, 0, 1, 2)
+zlist <- c(0, 1, 2, 3, 4)
 errlist <- c("stat", "sys", "vol", "tot")
 doplot <- T
 fnlin <- function(par, x, boot.R, ...) par[1] + par[2] * x
 fncon <- function(par, x, boot.R, ...) par[1]
 
 
-savefolder <- "tables_fnfour_20_old"
+savefolder <- "tables_fnfour_12"
 
 
 upperboundarycd <- 0.8724
@@ -20,34 +20,22 @@ replacelower <- c(F, T)
 replaceindex <- c(0, 10)
 confcounter <- 1
 
-pdf("plots/DG_VEA_int.pdf", title="")
+pdf("plots/DM_VEA_int_aic.pdf", title="")
 
 for(channel_index in seq_along(channels)) {
   channel <- channels[channel_index]
   upperbound <- channelboundaries[channel_index]
     for(kernel in c("sigmoid", "erf")) {
 
-B64 <- readRDS(sprintf("%s/DG_VEA_epslim_converted_B64_%s_%s.RDS", savefolder, channel, kernel))
-C80 <- readRDS(sprintf("%s/DG_VEA_epslim_converted_C80_%s_%s.RDS", savefolder, channel, kernel))
-D96 <- readRDS(sprintf("%s/DG_VEA_epslim_converted_D96_%s_%s.RDS", savefolder, channel, kernel))
-E112 <- readRDS(sprintf("%s/DG_VEA_epslim_converted_E112_%s_%s.RDS", savefolder, channel, kernel))
-contlim <- readRDS(sprintf("%s/DG_VEA_contlim_%s_%s_linear.RDS", savefolder, channel, kernel))
+contlim <- readRDS(sprintf("%s/DM_VEA_contlim_%s_%s_aic.RDS", savefolder, channel, kernel))
 
-B64table <- read.table(sprintf("%s/DG_VEA_epslim_converted_B64_%s_%s.csv", savefolder, channel, kernel), header=TRUE)
-C80table <- read.table(sprintf("%s/DG_VEA_epslim_converted_C80_%s_%s.csv", savefolder, channel, kernel), header=TRUE)
-D96table <- read.table(sprintf("%s/DG_VEA_epslim_converted_D96_%s_%s.csv", savefolder, channel, kernel), header=TRUE)
-E112table <- read.table(sprintf("%s/DG_VEA_epslim_converted_E112_%s_%s.csv", savefolder, channel, kernel), header=TRUE)
-contlimtable <- read.table(sprintf("%s/DG_VEA_contlim_%s_%s_linear.csv", savefolder, channel, kernel))
-
-B64$L <- rep(64, length(B64$Nt))
-C80$L <- rep(80, length(C80$Nt))
-D96$L <- rep(96, length(D96$Nt))
-E112$L <- rep(112, length(E112$Nt))
+contlimtable <- read.table(sprintf("%s/DM_VEA_contlim_%s_%s_aic.csv", savefolder, channel, kernel))
 
 
-enslist <- list(B64, C80, D96, E112, contlim)
-tablelist <- list(B64table, C80table, D96table, E112table, contlimtable)
-names <- c("B64", "C80", "D96", "E112", "contlim")
+
+enslist <- list(contlim)
+tablelist <- list(contlimtable)
+names <- c("contlim")
 
 
 res <- data.frame(name=NA, ensno=NA, errtype=NA, iz=NA, intspline=NA, dintspline=NA, intbsspline=NA, inttrap=NA, dinttrap=NA, intbstrap=NA)
@@ -86,9 +74,9 @@ for (i in seq_along(enslist)){
           mask[is.na(mask)] <- F
           masktable <- abs(mytable$th - th) < 1e-2 & mytable$iz == iz & mytable$errtype==errtype
           masktable[is.na(masktable)] <- F
-          y[index+1] <- ens$fit[[which(mask)]]$t0
-          dy[index+1] <- ens$fit[[which(mask)]]$se
-          try(bsamples[, index+1] <- ens$fit[[which(mask)]]$t[, 1])
+          y[index+1] <- ens$fit[[which(mask)]]$weighted$mean
+          dy[index+1] <- ens$fit[[which(mask)]]$weighted$sd
+          try(bsamples[, index+1] <- ens$fit[[which(mask)]]$weighted$bootsamples)
           x[index+1] <- mytable$q[masktable]^2
         } else {
           print(sprintf("failure for th %s", index))
@@ -100,7 +88,7 @@ for (i in seq_along(enslist)){
       slopebs <- (bsamples[, len] - bsamples[, len-1])/(x[len] - x[len-1])
       yupperbs <- bsamples[, len] + (upperboundarycd-x[len]) * slopebs
       
-      plotwitherror(x=x, y=y, dy=dy, xlab="q^2", ylab="DGammaDq^2", main=paste(channel, kernel, title))
+      plotwitherror(x=x, y=y, dy=dy, xlab="q^2", ylab="DMDq^2", main=paste(channel, kernel, title))
       xval <- seq(min(x), upperboundarycd, length.out=500)
       lines(x=xval, y=predict(object=spline, x=xval)$y, col="red", lty=2)
       lines(x, y, col="blue", lty=3)
@@ -135,10 +123,10 @@ for (i in seq_along(enslist)){
 
 res <- res[-1, ]
 res
-write.table(x=res, file=sprintf("%s/DG_VEA_%s_%s_int.csv", savefolder, channel, kernel), row.names=F, col.names=T)
+write.table(x=res, file=sprintf("%s/DM_VEA_%s_%s_int_aic.csv", savefolder, channel, kernel), row.names=F, col.names=T)
 
 reslist$info <- res
-saveRDS(object=reslist, file=sprintf("%s/DG_VEA_%s_%s_int.RDS", savefolder, channel, kernel)) 
+saveRDS(object=reslist, file=sprintf("%s/DM_VEA_%s_%s_int_aic.RDS", savefolder, channel, kernel)) 
 
 for(errtype in errlist) {
   mask <- res$errtype==errtype

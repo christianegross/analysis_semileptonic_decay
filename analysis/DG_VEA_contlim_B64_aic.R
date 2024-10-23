@@ -13,7 +13,7 @@ fitfnlist <- list(fnlin, fncon)
 par.guesslist <- list(c(1, 1), c(1))
 comment <- "aic"
 
-savefolder <- "tables_fnfour_12"
+savefolder <- "tables_fnfour_20_old"
 
 pdf("plots/DG_VEA_contlim_aic.pdf", title="")
 

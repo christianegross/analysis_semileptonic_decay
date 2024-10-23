@@ -3,6 +3,7 @@ source("/hiskp4/gross/heavymesons/helpscripts/contlimitbeforeepsilonlimit_aic.R"
 library("hadron")
 zlist <- c(3, 0, 1, 2)
 errlist <- c("stat", "sys", "vol", "tot")
+errlist <- c("stat")
 doplot <- T
 fnlin <- function(par, x, boot.R, ...) par[1] + par[2] * x
 fncon <- function(par, x, boot.R, ...) par[1] + 0*x
@@ -15,7 +16,7 @@ maxAmin <- 1
 dividemass <- F
 comment <- ""
 if(dividemass) comment <- "_dividemass"
-savefolder <- "tables_fnfour_12"
+savefolder <- "tables_fnfour_20_old"
 
 reslist <- list()
 names <- c()
@@ -44,7 +45,7 @@ for(theta in as.character(c(1:9, 9.5))) {
                                                      sprintf("tables/volume_interpolations/DG_tryB64factor_%s_%s.csv", channel, kernel), 
                                                      sprintf("tables/volume_interpolations/DG_tryB64factor_%s_%s.csv", channel, kernel), 
                                                      sprintf("tables/volume_interpolations/DG_tryB64factor_%s_%s.csv", channel, kernel)),
-                                 numberspacings = 4, neps=18, afm=c(0.07957, 0.06821, 0.05692, 0.04891), amds = c(0.8, 0.684, 0.57, 0.49), dividemass = dividemass)
+                                 numberspacings = 4, neps=20, afm=c(0.07957, 0.06821, 0.05692, 0.04891), amds = c(0.8, 0.684, 0.57, 0.49), dividemass = dividemass)
   dev.off()
   reslist[[index]] <- mine
   names[index] <- paste0("channel", channel, "kernel", kernel, "theta", theta)

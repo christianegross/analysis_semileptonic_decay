@@ -5,14 +5,14 @@ source("/hiskp4/gross/heavymesons/helpscripts/integrate.R")
 source("/hiskp4/gross/heavymesons/helpscripts/splineintegration_functions.R")
 
 errlist <- c("stat", "sys", "vol", "tot")
-zlist <- 0:4
+zlist <- 0:3
 dividemass <- F
-comment <- ""
+comment <- "_aic"
 if(dividemass) comment <- "_dividemass"
-savefolder <- "tables_fnfour_12"
+savefolder <- "tables_fnfour_20_old"
 
-mytable <- read.table(sprintf("%s/DM_VAE_epslim%s.csv", savefolder, comment), header=TRUE)
-mydata <- readRDS(sprintf("%s/DM_VAE_epslim%s.RDS", savefolder, comment))
+mytable <- read.table(sprintf("%s/DG_VAE_epslim%s.csv", savefolder, comment), header=TRUE)
+mydata <- readRDS(sprintf("%s/DG_VAE_epslim%s.RDS", savefolder, comment))
 res <- data.frame(channel=NA, kernel=NA, ensno=NA, errtype=NA, iz=NA, intspline=NA, dintspline=NA, intbsspline=NA, inttrap=NA, dinttrap=NA, intbstrap=NA)
 reslist <- list()
 upperboundarycd <- 0.8724
@@ -26,7 +26,7 @@ replacelower <- c(F, T)
 replaceindex <- c(0, 10)
 confcounter <- 1
 
-pdf(sprintf("plots/DM_VAE_int%s.pdf", comment), title="")
+pdf(sprintf("plots/DG_VAE_int%s.pdf", comment), title="")
 
 m_Ds <- 1.96835
 for(channel_index in seq_along(channels)) {
@@ -50,7 +50,7 @@ for(channel_index in seq_along(channels)) {
         slopebs <- (bsamples[, len] - bsamples[, len-1])/(x[len] - x[len-1])
         yupperbs <- bsamples[, len] + (upperboundarycd-x[len]) * slopebs
         
-        plotwitherror(x=x, y=y, dy=dy, xlab="q^2", ylab="DMDq^2", main=paste(channel, kernel, title))
+        plotwitherror(x=x, y=y, dy=dy, xlab="q^2", ylab="DGammaDq^2", main=paste(channel, kernel, title))
         xval <- seq(min(x), upperboundarycd, length.out=500)
         lines(x=xval, y=predict(object=spline, x=xval)$y, col="red", lty=2)
         lines(x, y, col="blue", lty=3)
@@ -85,9 +85,9 @@ for(channel_index in seq_along(channels)) {
 }
 res <- res[-1, ]
 res
-write.table(x=res, file=sprintf("%s/DM_VAE_int%s.csv", savefolder, comment), row.names=F, col.names=T)
+write.table(x=res, file=sprintf("%s/DG_VAE_int%s.csv", savefolder, comment), row.names=F, col.names=T)
 
 reslist$info <- res
-saveRDS(object=reslist, file=sprintf("%s/DM_VAE_int%s.RDS", savefolder, comment)) 
+saveRDS(object=reslist, file=sprintf("%s/DG_VAE_int%s.RDS", savefolder, comment)) 
 
 dev.off()
