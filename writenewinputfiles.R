@@ -1,20 +1,23 @@
 parent <- "/hiskp4/gross/heavymesons/data"
 #~ parent <- "~/Documents/heavymesons/data/newinput"
 folders <- c("cB211.07.64", "cB211.07.96", "cC211.06.80_600", "cD211.054.96", "cE211.044.112_300", "cB211.07.48_300", "cB211.07.48_400", "cB211.07.64_48_36", "cC211.06.80_300", "cE211.044.112_200")
-folders <- c("cE211.044.112_300")
+folders <- c("cB211.07.64", "cD211.054.96")
 subfolders  <- c("th1", "th2", "th3", "th4", "th5", "th6", "th7", "th8", "th9", "th9.5")
-#~ subfolders  <- c("th2_su", "th4_su", "th6_su", "th8_su", "th9.5_su")
+subfolders  <- c("th2_su", "th4_su", "th6_su", "th8_su", "th9.5_su", "th10_su", "th1")
 
 infos <- read.table("parameters_input_files.csv", row.names=1, header=TRUE, sep=",", comment.char = "#")
 #~ print(infos)
-names(infos)
 
 system(sprintf("mkdir -p %s/cd/", parent))
 system(sprintf("mkdir -p %s/cs/", parent))
+system(sprintf("mkdir -p %s/su/", parent))
+print(folders)
+print(names(infos))
 
-for(channel in c("cd", "cs")) {
-#~ for(channel in c("su")) {
+#~ for(channel in c("cd", "cs")) {
+for(channel in c("su")) {
     for (folder in folders) {
+        print(folder)
         system(sprintf("mkdir -p %s/%s/%s", parent, channel, folder))
             ensinfos <- infos[folder]
 #~             print(ensinfos)
@@ -27,8 +30,10 @@ for(channel in c("cd", "cs")) {
             Yin <- sprintf("%s/Y.in", path)
             sigmoidin <- sprintf("%s/DGammaDq2_sigmoid_new.in", path)
             momentsigmoidin <- sprintf("%s/DMDq2_sigmoid_new.in", path)
+            momenttwosigmoidin <- sprintf("%s/DM2Dq2_sigmoid_new.in", path)
             erfin <- sprintf("%s/DGammaDq2_erf_new.in", path)
             momenterfin <- sprintf("%s/DMDq2_erf_new.in", path)
+            momenttwoerfin <- sprintf("%s/DM2Dq2_erf_new.in", path)
             system(sprintf("rm -f %s %s %s %s %s", Yin, sigmoidin, momentsigmoidin, erfin, momenterfin))
             cat("[Run Parameters]", 
                 sprintf("L\t\t\t\t%d", ensinfos["L", ]), 
@@ -96,19 +101,25 @@ for(channel in c("cd", "cs")) {
                 file=sigmoidin, sep="\n", append=TRUE)
             
             system(sprintf("cp %s %s", sigmoidin, momentsigmoidin))
+            system(sprintf("cp %s %s", sigmoidin, momenttwosigmoidin))
             
             cat("normalization\t\t1\t\t# normalization=1 computes only dM, normalization=0 computes dM/dG", 
                 file=momentsigmoidin, sep="\n", append=TRUE)
+            cat("normalization\t\t1\t\t# normalization=1 computes only dM, normalization=0 computes dM/dG", 
+                file=momenttwosigmoidin, sep="\n", append=TRUE)
                 
             cat("#solve\t\t\tAoB\t\t\t# MULTI,PLATEAUX,AoB\n#rfact\t\t\t1.0", 
                 file=sigmoidin, sep="\n", append=TRUE)
             cat("#solve\t\t\tAoB\t\t\t# MULTI,PLATEAUX,AoB\n#rfact\t\t\t1.0", 
                 file=momentsigmoidin, sep="\n", append=TRUE)
+            cat("#solve\t\t\tAoB\t\t\t# MULTI,PLATEAUX,AoB\n#rfact\t\t\t1.0", 
+                file=momenttwosigmoidin, sep="\n", append=TRUE)
 
                 
             
             system(sprintf("cp %s %s", sigmoidin, erfin))
             system(sprintf("cp %s %s", momentsigmoidin, momenterfin))
+            system(sprintf("cp %s %s", momenttwosigmoidin, momenttwoerfin))
             
             namessigmoid <- paste0("sigma_sigmoid", 1:ensinfos["nsigma_sigmoid", ])
             nameserf <- paste0("sigma_erf", 1:ensinfos["nsigma_erf", ])
@@ -127,6 +138,13 @@ for(channel in c("cd", "cs")) {
                 file=momentsigmoidin, sep="\n", append=TRUE)
             
             cat("\n[Kernel]\n",
+                "kernel\t\tSIGMOID # SIGMOID, ERF", 
+                "\n[Kernel Parameters]", 
+                sprintf("nsigma\t%d", ensinfos["nsigma_sigmoid", ]),
+                paste0("sigma", 1:ensinfos["nsigma_sigmoid", ], " ", ensinfos[namessigmoid, ]),
+                file=momenttwosigmoidin, sep="\n", append=TRUE)
+            
+            cat("\n[Kernel]\n",
                 "kernel\t\tERF # SIGMOID, ERF", 
                 "\n[Kernel Parameters]", 
                 sprintf("nsigma\t%d", ensinfos["nsigma_erf", ]),
@@ -139,6 +157,13 @@ for(channel in c("cd", "cs")) {
                 sprintf("nsigma\t%d", ensinfos["nsigma_erf_dmdq2", ]),
                 paste0("sigma", 1:ensinfos["nsigma_erf_dmdq2", ], " ", ensinfos[nameserf[1:ensinfos["nsigma_erf_dmdq2", ]], ]),
                 file=momenterfin, sep="\n", append=TRUE)
+
+            cat("\n[Kernel]\n",
+                "kernel\t\tERF # SIGMOID, ERF", 
+                "\n[Kernel Parameters]", 
+                sprintf("nsigma\t%d", ensinfos["nsigma_erf_dmdq2", ]),
+                paste0("sigma", 1:ensinfos["nsigma_erf_dmdq2", ], " ", ensinfos[nameserf[1:ensinfos["nsigma_erf_dmdq2", ]], ]),
+                file=momenttwoerfin, sep="\n", append=TRUE)
 
 
 
