@@ -493,3 +493,89 @@ read_in_DGDell_partial <- function(filename, resultpath="./", endian=.Platform$e
     close(to.read)
     return (result)
 }
+
+
+
+#~ int indexY(Y_t *Y,int t,int iy,int icomb)
+#~ {
+#~    return t+(Y->tj+1)*(iy+5*icomb);
+#~ }
+indexy <- function(tj, t, iy, icomb) t + (tj+1)*(iy+5*icomb)
+
+#~ void store_Y(FILE *ofp,int nsets, Y_t *Y)
+#~ {
+#~    int iset,iy,ny;
+   
+#~    fwrite(&(nsets),sizeof(int),1,ofp);
+
+#~    for(iset=0;iset<nsets;++iset)
+#~    {
+#~       fwrite(&(Y[iset].L),sizeof(int),1,ofp);
+#~       fwrite(&(Y[iset].T),sizeof(int),1,ofp);
+#~       fwrite(&(Y[iset].tsink),sizeof(int),1,ofp);
+#~       fwrite(&(Y[iset].tj),sizeof(int),1,ofp);
+
+#~       fwrite(&(Y[iset].afm),sizeof(double),1,ofp);
+#~       fwrite(&(Y[iset].w),sizeof(double),1,ofp);
+#~       fwrite(&(Y[iset].mpigev),sizeof(double),1,ofp);
+
+#~       jack_store(ofp,Y[iset].mH);
+#~       jack_store(ofp,Y[iset].mL);
+#~       jack_store(ofp,Y[iset].eL);
+
+#~       ny=5*NCOMBS*(Y[iset].tj+1);
+#~       for(iy=0;iy<ny;++iy)
+#~ 	 jack_store(ofp,Y[iset].y+iy);
+#~    }
+#~ }
+
+read_in_Y <- function(filename, resultpath="./", endian=.Platform$endian, NCOMBS=5, NDG=4, write=FALSE, savename=-1) {
+    to.read <- file(paste0(resultpath, "/", filename), "rb")
+
+    
+    nsets <- readBin(to.read, "integer", 1, endian = endian)
+    
+    result <- list(nsets=nsets, rep(NA, nsets))
+    
+    for ( iset in seq(1, nsets)) {
+        metadata          <- data.frame(L=readBin(to.read, "integer", 1, endian = endian))
+        metadata$T        <- readBin(to.read, "integer", 1, endian = endian)
+        metadata$tsink    <- readBin(to.read, "integer", 1, endian = endian)
+        metadata$tj       <- readBin(to.read, "integer", 1, endian = endian)
+        metadata$afm      <- readBin(to.read, "double",  1, endian = endian)
+        metadata$w        <- readBin(to.read, "double",  1, endian = endian)
+        metadata$mpigev   <- readBin(to.read, "double",  1, endian = endian)
+        
+        result[[iset+1]]  <- list()
+        result[[iset+1]]$metadata <- metadata
+        result[[iset+1]]$mH     <- read_jack(to.read, endian=endian)
+        result[[iset+1]]$mL     <- read_jack(to.read, endian=endian)
+        result[[iset+1]]$eL     <- read_jack(to.read, endian=endian)
+        result[[iset+1]]$boot   <- c()
+        result[[iset+1]]$n      <- c()
+        result[[iset+1]]$ycorr  <- list()
+        
+        
+        for(id in seq(1, 5*NCOMBS*(metadata$tj+1))){
+            tmp <- read_jack(to.read, endian=endian)
+            
+            result[[iset+1]]$boot[id]   <- tmp$boot
+            result[[iset+1]]$n[id]      <- tmp$n
+            result[[iset+1]]$ycorr[[id]]  <- tmp$bsamples
+            ## ieps+DG->neps*(icomb+NCOMBS*idg)
+#~             ieps <- id %% metadata$neps
+#~             icomb <- ((id-ieps)/metadata$neps) %% NCOMBS
+#~             iz    <- ((id-ieps)/metadata$neps-icomb)/NCOMBS
+#~             name <- paste0("id", id, "ieps", ieps, "icomb", icomb, "iz", iz)
+#~             tmpres <- read_multi_solve(to.read, endian=endian, NFUNC=NFUNC)
+#~             result[[iset+1]][[name]] <- tmpres
+        }
+    }
+    if(write) {
+        filenamesave <- savename
+        if (savename == -1) filenamesave <- paste0("DGammaDq2.RData")
+        saveRDS(paste0(resultpath, "/", result), filename)
+    }
+    close(to.read)
+    return (result)
+}
