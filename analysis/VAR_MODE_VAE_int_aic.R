@@ -69,6 +69,9 @@ for(channel_index in seq_along(channels)) {
         x <- c(0, mytable$w[mytable$iz==iz & mytable$errtype==errtype & mytable$channel==channel & mytable$kernel==kernel])^2*m_Ds^2
         bsamples[, 2:11] <- mydata$bsDGDq2[, which(mydata$iz==iz & mydata$errtype==errtype & mydata$channel==channel & mydata$kernel==kernel)]
         
+        print(x)
+        print(y)
+        
         spline <- interpSpline(x, y)
         len <- length(x)
         slopebs <- (bsamples[, len] - bsamples[, len-1])/(x[len] - x[len-1])

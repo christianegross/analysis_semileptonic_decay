@@ -42,9 +42,13 @@ for(channel_index in seq_along(channels)) {
         bsamples <- array(rep(0, 11000), dim=c(1000, 11))
         y <- c(0, mytable$DGDq2[mytable$iz==iz & mytable$errtype==errtype & mytable$channel==channel & mytable$kernel==kernel])
         dy <- c(0, mytable$dDGDq2[mytable$iz==iz & mytable$errtype==errtype & mytable$channel==channel & mytable$kernel==kernel])
-        x <- c(0, mytable$theta[mytable$iz==iz & mytable$errtype==errtype & mytable$channel==channel & mytable$kernel==kernel]*0.0934516)^2
+        x <- c(0, mytable$w[mytable$iz==iz & mytable$errtype==errtype & mytable$channel==channel & mytable$kernel==kernel])^2*m_Ds^2
         bsamples[, 2:11] <- mydata$bsDGDq2[, mydata$iz==iz & mydata$errtype==errtype & mydata$channel==channel & mydata$kernel==kernel]
         
+print(x)
+print(c(0, mytable$theta[mytable$iz==iz & mytable$errtype==errtype & mytable$channel==channel & mytable$kernel==kernel]*0.0934516)^2)
+print(mytable$w[mytable$iz==iz & mytable$errtype==errtype & mytable$channel==channel & mytable$kernel==kernel])
+print(mytable$theta[mytable$iz==iz & mytable$errtype==errtype & mytable$channel==channel & mytable$kernel==kernel])
         spline <- interpSpline(x, y)
         len <- length(x)
         slopebs <- (bsamples[, len] - bsamples[, len-1])/(x[len] - x[len-1])
