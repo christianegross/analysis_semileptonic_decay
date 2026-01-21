@@ -235,8 +235,8 @@ endian <- .Platform$endian
 writeBin(object=as.integer(1),                                       con=to.write, endian=endian)
 writeBin(object=as.integer(parameters$V2[parameters$V1 == "L"]),     con=to.write, endian=endian)
 writeBin(object=as.integer(parameters$V2[parameters$V1 == "T"]),     con=to.write, endian=endian)
-writeBin(object=as.integer(characteristics$tsink),                   con=to.write, endian=endian)
-writeBin(object=as.integer(characteristics$tj),                      con=to.write, endian=endian)
+writeBin(object=as.integer(tsink),                                   con=to.write, endian=endian)
+writeBin(object=as.integer(tj),                                      con=to.write, endian=endian)
 
 
 writeBin(object=as.double(parameters$V2[parameters$V1 == "afm"]),    con=to.write, endian=endian)
