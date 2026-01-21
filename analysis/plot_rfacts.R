@@ -17,8 +17,27 @@ option_list <- list(
     help = "kernel [default %default]"),
     make_option(c("-f", "--folder"), type = "character", default = "-1",
     help = "folder with results [default %default]"),
+    make_option(c("-p", "--plotfolder"), type = "character", default = "-1",
+    help = "folder where plots and tables are stored [default %default]"),
     make_option(c("-b", "--bmass"), type = "integer", default = "-1",
-    help = "index for bmass [default %default]")
+    help = "index for bmass [default %default]"),
+    make_option(c("-l", "--lowr"), type = "integer", default = "-2",
+    help = "log10 of lowest analysed A/B factor [default %default]"),
+    make_option(c("--plotlowr"), type = "integer", default = "3",
+    help = "log10 of lowest analysed A/B factor to be shown in plotting [default %default]"),
+    make_option(c("-u", "--highr"), type = "integer", default = "6",
+    help = "log10 of highest analysed A/B factor [default %default]"),
+    make_option(c("-n", "--normnumber"), type = "integer", default = "0",
+    help = "index of norm to be analysed [default %default]"),
+    make_option(c("--drawhorizontal"), action = "store_true", default = FALSE,
+    help = "if true, draws horizontal lines for each endpoint [default %default]"),
+    make_option(c("--epsmax"), type = "integer", default = 40,
+    help = "index of highest smearing parameter to be considered [default %default]"),
+    make_option(c("--numsuggest"), type = "integer", default = 2,
+    help = "suggest the point with highest A/A0 that is compatible with the numsuggest points with smaller A/A0 [default %default]"),
+    make_option(c("--compareerror"), type = "character", default = "sum",
+    help = "Give the mode with which to calculate the compatibility matrix [default %default]")
+    
 )
 parser <- OptionParser(usage = "%prog [options]", option_list = option_list)
 args <- parse_args(parser, positional_arguments = 0)
@@ -28,7 +47,14 @@ opt <- args$options
 if(opt$folder=="-1") {
     opt$folder <- sprintf("~/Documents/heavymesons/data/%s/%s/%s", opt$channel, opt$ensemble, opt$momentum)
 }
+if(opt$plotfolder=="-1") {
+    opt$plotfolder <- opt$folder
+}
 
+
+stopifnot(opt$highr > opt$lowr)
+
+if(!(opt$compareerror %in% c("sum", "sqrtsum", "lower"))) stop("invalid mode for building the compatibility matrix given!")
 
 if(opt$mode=="DG") {
     modefolder <- "DGammaDq2"
@@ -41,20 +67,28 @@ if(opt$mode=="DG") {
     zmax <- 4
 }
 
-rfacts <- 10^(1:5)
+rfacts <- 10^(opt$lowr:opt$highr)
 
 bmassaddon <- ifelse(opt$bmass==-1, "", sprintf("_bmass_%d", opt$bmass))
 
 
-pdf(sprintf("%s/rfact_%s_%s%s.pdf", opt$folder, opt$mode, opt$kernel, bmassaddon), title="")
+pdf(sprintf("%s/rfact_%s_%s%s_ik%s_%s.pdf", opt$plotfolder, opt$mode, opt$kernel, bmassaddon, opt$normnumber, opt$momentum), title="", height=11.7, width=16.6)
 
-filenamerfacts <- sprintf("%s/setrfacts_%s_%s%s.csv", opt$folder, opt$mode, opt$kernel, bmassaddon)
+filenamerfacts <- sprintf("%s/rfact_%s_%s%s_ik%d_%s.csv", opt$plotfolder, opt$mode, opt$kernel, bmassaddon, opt$normnumber, opt$momentum)
 
 resultsselected <- file.exists(filenamerfacts)
-if(resultsselected) rselection <- read.table(filenamerfacts, header=T, sep=",")
+if(resultsselected)  {
+    rselection <- read.table(filenamerfacts, header=T, sep=",")
+    if(length(rselection$ieps)==0) rselection <- read.table(filenamerfacts, header=T, sep=" ")
+    if(length(rselection$ieps)==0) stop("cannot read in resultfile")
+}
+
+suggestedrfact <- c()
+numrfactsuggested <- 0
+numrfacttaken <- 0
 
 for(iz in 0:zmax) {
-    for(iepsilon in 0:40) {
+    for(iepsilon in 0:min(opt$epsmax, 40)) {
         res <- data.frame(ik=c(), spectreflag=c(), lambda_start=c(), lambdalambda_start=c(), Bnorm=c(), A0=c(), AA0_min=c(), AA0_ref=c(), AA0=c(), BnormB_ref=c(), BnormB=c(), C_ref=c(), C=c(), rho=c(), drho_stat=c(), drho_syst=c(), drho_tot=c(), resflag=c(), rfact=c())
         
         for(rfact in rfacts) {
@@ -68,24 +102,68 @@ for(iz in 0:zmax) {
                                                          
                   
                   if(!inherits(datastab, "try-error")) {
-                    datastabaa0 <- datastab[datastab$spectreflag==1, ]
+                    datastabaa0 <- datastab[datastab$spectreflag==1 & datastab$ik==opt$norm, ]
                     datastabaa0$rfact <- rfact
                     res <- rbind(res, datastabaa0)
                     
             }
         }
         if(length(res$AA0_ref) > 1) {
-            plotwitherror(x=res$AA0_ref/res$BnormB*res$rfact, y=res$rho, dy=res$drho_stat, col=log10(res$rfact), xlab="A/B", ylab="rho", main=paste(opt$channel, opt$ensemble, opt$momentum, opt$mode, "eps", iepsilon, "Z", iz, bmassaddon), log="x")
+            masklim <- res$resflag==1 & res$rfact>=10^opt$plotlowr & res$rfact<=10^opt$highr
+            plotwitherror(x=res$AA0_ref[res$resflag==0], y=res$rho[res$resflag==0], dy=res$drho_stat[res$resflag==0], 
+            col=log10(res$rfact[res$resflag==0])+5, xlab="A/A0", ylab="rho", 
+            main=paste(opt$channel, opt$ensemble, opt$momentum, opt$mode, "eps", iepsilon, "Z", iz, bmassaddon), 
+            log="x", 
+            ylim=range(res$rho[masklim] - 1.02*res$drho_stat[masklim], res$rho[masklim] + 1.02*res$drho_stat[masklim]))
             grid()
-            abline(v=outer(1:9, 10^(1:7)), col = "lightgray", lty = "dotted")
-            abline(v=(res$AA0_ref/res$BnormB*res$rfact)[res$resflag==1], col=log10(res$rfact[res$resflag==1]))
+            abline(v=outer(1:9, 10^((opt$lowr-1):(opt$highr+2))), col = "lightgray", lty = "dotted")
+            abline(v=(res$AA0_ref)[res$resflag==1], col=log10(res$rfact[res$resflag==1])+5)
+            abline(h=(res$rho)[res$resflag==1] + (res$drho_stat)[res$resflag==1], col=log10(res$rfact[res$resflag==1])+5, lty=4)
+            abline(h=(res$rho)[res$resflag==1] - (res$drho_stat)[res$resflag==1], col=log10(res$rfact[res$resflag==1])+5, lty=4)
                         
-            legend(x="topleft", legend=sprintf("%.2e", rfacts), col=log10(rfacts), pch=c(1))
+            legend(x="topright", legend=sprintf("%.2e", rfacts), col=log10(rfacts)+5, pch=c(21), pt.bg=log10(rfacts)+5)
+            
+            ## calculate suggested A/B fact
+            ## select point that agrees with the next numsuggest smaller points at the level of the points with lower A/A0
+            ## rfact ascends -> we have to consider the vector in reverse, higher rfact means higher A/A0
+            respoints <- (res$rho)[res$resflag==1]
+            drespoints <- (res$drho_stat)[res$resflag==1]
+            
+            if(opt$compareerror=="lower")   mat <- t(t(outer(respoints, respoints, '-'))/drespoints)
+            if(opt$compareerror=="sqrtsum") mat <- t(t(outer(respoints, respoints, '-'))/outer(drespoints, drespoints, function(x, y) sqrt(x^2+y^2)))
+            if(opt$compareerror=="sum")     mat <- t(t(outer(respoints, respoints, '-'))/outer(drespoints, drespoints, '+'))
+            mat <- abs(mat)
+#~             print(mat)
+            mat <- abs(mat) < 1
+#~             print(mat)
+            foundsuggestion <- FALSE
+            rfactindex <- opt$highr - opt$lowr + 2
+#~             print(rfactindex)
+            while(!foundsuggestion & rfactindex > (opt$numsuggest+1)) {
+                rfactindex <- rfactindex - 1
+                foundsuggestion <- all(mat[rfactindex, (rfactindex - 1):(rfactindex - opt$numsuggest)])
+            }
+            if(!foundsuggestion) {
+                print(paste(opt$ensemble, opt$momentum, opt$bmass, "iz", iz, "ieps", iepsilon, "no point can be suggested!"))
+                suggestedrfact <- append(suggestedrfact, NA)
+            }
+            if(foundsuggestion) {
+                abline(v=(res$AA0_ref)[res$resflag==1][rfactindex], col="red", lwd=5, lty=4)
+                suggestedrfact <- append(suggestedrfact, log10(rfacts[rfactindex]))
+            }
             
             if(resultsselected){
-                abline(v=rselection$statrfact[rselection$iz==iz & rselection$ieps==iepsilon], lwd=2)
-                legend(x="topright", legend="selected", col="black", lty=1, lwd=2)
-            } 
+                rfactindexsolve <- rselection$statrfact[rselection$iz==iz & rselection$ieps==iepsilon] - opt$lowr + 1
+                abline(v=(res$AA0_ref)[res$resflag==1][rfactindexsolve], lwd=10, lty=3, col="darkgreen")
+                legend(x="topleft", legend=c("selected", "suggested"), col=c("darkgreen", "red"), lty=c(3, 4), lwd=5)
+                if(foundsuggestion) {
+                    numrfacttaken <- numrfacttaken + as.integer(rselection$statrfact[rselection$iz==iz & rselection$ieps==iepsilon] == suggestedrfact[length(suggestedrfact)])
+                    numrfactsuggested <- numrfactsuggested + 1
+                    
+                }
+            } else {
+                legend(x="topleft", legend=c("suggested"), col=c("red"), lty=c(4), lwd=5)
+            }
         }
     
     }
@@ -93,10 +171,14 @@ for(iz in 0:zmax) {
 
 
 tmp <- read.table(sprintf("%s/%s_%.2e/output%s/%s.dat", opt$folder, opt$kernel, rfacts[1], modefolder, modefolder), col.names=c("mH", "iset", "w", "icomb", "idg", "ieps", "eps", "rho", "stat", "sys", "tot"))
-tmp <- tmp[tmp$icomb==0 & tmp$idg <= zmax, ]
+tmp <- tmp[tmp$icomb==0 & tmp$idg <= zmax & tmp$ieps <= opt$epsmax, ]
 
-setfinalrresult <- data.frame(m=tmp$mH, w=tmp$w, iz=tmp$idg, ieps=tmp$ieps, eps=tmp$eps, statrfact=NA)
+setfinalrresult <- data.frame(m=tmp$mH, w=tmp$w, iz=tmp$idg, ieps=tmp$ieps, eps=tmp$eps, statrfact=suggestedrfact)
 if(!file.exists(filenamerfacts)){
-    write.table(x=setfinalrresult, file=filenamerfacts, col.names=T, row.names=F)
+    write.table(x=setfinalrresult, file=filenamerfacts, col.names=T, row.names=F, sep=",")
 } 
 
+if(numrfactsuggested!=0) {
+    print(paste("took", numrfacttaken/numrfactsuggested, "of the suggested points"))
+    cat(paste("took", numrfacttaken/numrfactsuggested, "of the suggested points", opt$mode, opt$kernel, bmassaddon, opt$normnumber, opt$momentum), file=sprintf("%s/takensuggestions.txt", opt$plotfolder), append=T)
+}
