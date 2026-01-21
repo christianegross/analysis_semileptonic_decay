@@ -303,6 +303,54 @@ for (name in c("Ds", "D", "eta", "K", "pi")) {
 saveRDS(object=contlimlist, file="contlimmesonmasses.RDS")
 ```
 
+<!-- plot masses to a pdf -->
+<!-- ```{r masscombined} -->
+<!-- pdf("massesallensembles.pdf") -->
+<!-- res <- read.table("calculatedmesonmasses_more_stat.csv", header=T) -->
+<!-- reslist <- readRDS("calculatedmesonmasses_more_stat.RDS") -->
+<!-- names <- c("Ds", "D", "eta", "K", "pi", "Ds_sl", "D_sl", "eta_sl", "K_sl", "pi_sl") -->
+<!-- limits <- data.frame(meson=c("Ds", "D", "eta", "K", "pi", "Ds_sl", "D_sl", "eta_sl", "K_sl", "pi_sl"),  -->
+<!--                      lower=c(9, 8, 9, 9, 9, 9, 8, 9, 9, 9),  -->
+<!--                      upper=c(18, 14, 25, 22, 22, 18, 14, 25, 22, 22)) -->
+<!--   par(mai = c(1.02, 0.8, 0.32, 1.0)) -->
+<!-- colors <- c(1, 2, 3, 4, 5, 6) -->
+<!-- for (name_id in seq_along(names)) { -->
+<!--   name <- names[name_id] -->
+<!--   masses <- c() -->
+<!--   for (i in seq(2, length(reslist$info$name))) { -->
+<!--     if(name == "D" || name == "D_sl") { -->
+<!--       masses <- append(masses,  -->
+<!--                        reslist[[name]][[i]]$effMass[ensinfos$lowlim[i]:(reslist[[name]][[i]]$Time/2-ensinfos$uplim[i]-20)]/reslist$info$afm[i]/fmtogev) -->
+<!--     } else { -->
+<!--       masses <- append(masses,  -->
+<!--                        reslist[[name]][[i]]$effMass[ensinfos$lowlim[i]:(reslist[[name]][[i]]$Time/2-ensinfos$uplim[i])]/reslist$info$afm[i]/fmtogev) -->
+<!--     } -->
+<!--   } -->
+
+<!--   plotwitherror(x=reslist[[name]][[1]]$t.idx*reslist$info$afm[1],#*fmtogev,  -->
+<!--                 y=reslist[[name]][[1]]$effMass/reslist$info$afm[1]/fmtogev,  -->
+<!--                 dy=reslist[[name]][[1]]$deffMass/reslist$info$afm[1]/fmtogev,  -->
+<!--                 xlab="t [fm]", ylab="m_eff [GeV]", main=name, col=colors[1], pch=colors[1], -->
+<!--                 xlim=c(7, 25)/fmtogev, ylim=mean(masses)+sd(masses)*c(-1, 1)*3) -->
+<!--   for (i in seq(2, length(reslist$info$name))) { -->
+<!--     plotwitherror(x=reslist[[name]][[i]]$t.idx*reslist$info$afm[i],#*fmtogev,  -->
+<!--                   y=reslist[[name]][[i]]$effMass/reslist$info$afm[i]/fmtogev,  -->
+<!--                   dy=reslist[[name]][[i]]$deffMass/reslist$info$afm[i]/fmtogev,  -->
+<!--                   pch=colors[i], col=colors[i], rep=TRUE) -->
+<!--   } -->
+<!--   lines(x=rep(limits$lower[name_id], 2)/fmtogev, y=c(-1, 10), lwd=2, lty=2) -->
+<!--   lines(x=rep(limits$upper[name_id], 2)/fmtogev, y=c(-1, 10), lwd=2, lty=2) -->
+<!--   legend(x="topright", legend=reslist$info$name, col=colors, pch=colors, inset = c(-0.16, 0), xpd=TRUE) -->
+<!-- } -->
+<!-- for (ens in reslist$info$name) { -->
+<!--   # print(paste0("lowerlatticeunits", ens)) -->
+<!-- limits[[paste0("lowerlatticeunits", ens)]] <- round(limits$lower/reslist$info$afm[reslist$info$name==ens]/fmtogev) -->
+<!-- limits[[paste0("upperlatticeunits", ens)]] <- round(limits$upper/reslist$info$afm[reslist$info$name==ens]/fmtogev) -->
+<!-- } -->
+<!-- # limits -->
+<!-- write.table(limits, "proposeboundaries_more_stat.csv", row.names=F) -->
+<!-- ``` -->
+
 <!-- We also determine the decay constants. For that, we first determine the matrix elements by a matrix fit, and then we determine the decay constant. -->
 
 <!-- Problem: this is only the smeared-smeared matrix element, which gives unphysical results for the decay constant. -->

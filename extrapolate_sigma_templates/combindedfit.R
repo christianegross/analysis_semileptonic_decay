@@ -54,3 +54,17 @@ polygon(x=c(xseq, rev(xseq)), y=polyval2, col=pcol2, lty=0, lwd=0.001, border=pc
 plotwitherror(x=fitresult$x, y=fitresult$y, dy=fitresult$dy, col=ifelse(fitresult$maskfn, cols[1], cols[2]), pch=ifelse(fitresult$maskfn, pchs[1], pchs[2]), xlim=xlim, ylim=ylim, rep=T, ...)
 
 }
+
+
+#~ x <- c(1:10, 1:10)
+#~ y1 <- 1:10*2+rnorm(10, mean=0, sd=0.5)
+#~ y2 <- 1:10*3+rnorm(10, mean=0, sd=0.1)
+#~ y <- c(y1, y2)
+#~ bsamples <- parametric.bootstrap(100, x=c(y1, y2), dx=rep(0.5, 20), seed=1234)
+#~ fn <- function(par, x, boot.r, maskfn, ...) {
+#~   par[1] + par[2]*x*maskfn + par[3]*x*(!maskfn)
+#~ }
+#~ fit.result <- bootstrap.nlsfit(fn=fn, par.guess=c(1, 1, 1), y=y, x=x, bsamples = bsamples, maskfn=c(rep(T, 10), rep(F, 10)))
+#~ summary(fit.result)
+#~ plotcombined(fit.result, cols=c("black", "orange"), pch=c(21, 21), xlim=c(0, 10), ylim=c(0, 30))
+#~ plotwitherror(fit.result$x, fit.result$y, fit.result$dy, rep=T, col=ifelse(fit.result$tofn$maskfn, "black", "orange"))
