@@ -56,11 +56,14 @@ D96 <- readRDS(sprintf("%s/cD211.054.96/%s/%s/chosen_%sBJnu_m%d_%s_ik0_boots_err
 stopifnot(nsigma == dim(D96)[2])
 stopifnot(nboot == dim(D96)[3])
 
+B64_table <- read.table(sprintf("%s/cB211.07.64/%s/%s/chosen_%sBJnu_m%d_%s_ik0.csv", opt$folder, opt$momentum, opt$subfolder, ifelse(opt$kernel=="erf", "erf_", ""), opt$bmass, opt$momentum), header=T)
+C80_table <- read.table(sprintf("%s/cC211.06.80/%s/%s/chosen_%sBJnu_m%d_%s_ik0.csv", opt$folder, opt$momentum, opt$subfolder, ifelse(opt$kernel=="erf", "erf_", ""), opt$bmass, opt$momentum), header=T)
+D96_table <- read.table(sprintf("%s/cD211.054.96/%s/%s/chosen_%sBJnu_m%d_%s_ik0.csv", opt$folder, opt$momentum, opt$subfolder, ifelse(opt$kernel=="erf", "erf_", ""), opt$bmass, opt$momentum), header=T)
+
 
 reslist <- list()
+reslistlinear <- list()
 
-iz <- 1
-isigma <- 1
 
 fitfn1 <- function(pars, x, boot.r, ...) pars[1] + x*pars[2]
 fitfn2 <- function(pars, x, boot.r, ...) pars[1] + x*0
@@ -69,13 +72,14 @@ pdf(sprintf("%s/contlimit_%s_m%d_%s_%s.pdf", opt$plotfolder, opt$kernel, opt$bma
 
 for(iz in 0:zmax) {
   for(isigma in 0:(nsigma-1)) {
-#~   for(isigma in 0:2) {
     boots <- array(c(B64[iz+1, isigma+1, ], C80[iz+1, isigma+1, ], D96[iz+1, isigma+1, ]), dim=c(nboot, 3))
+    y <- c(B64_table$rho[B64_table$iz==iz & B64_table$ieps==isigma], C80_table$rho[C80_table$iz==iz & C80_table$ieps==isigma], D96_table$rho[D96_table$iz==iz & D96_table$ieps==isigma])
     
     afm <- c(0.07957, 0.06821, 0.05692)
-    fit1 <- bootstrap.nlsfit(x=afm^2, y=apply(boots, 2, mean), bsamples=boots, fn=fitfn1, par.guess=c(1, 1))
+    # perform fits and assign AIC weights
+    fit1 <- bootstrap.nlsfit(x=afm^2, y=y, bsamples=boots, fn=fitfn1, par.guess=c(1, 1), success.infos=1:4)
     weights <- c(exp(-1*(fit1$chisqr + 2 * 2 - length(fit1$x))/2))
-    fit2 <- try(bootstrap.nlsfit(x=afm^2, y=apply(boots, 2, mean), bsamples=boots, fn=fitfn2, par.guess=c(1), mask=c(F, T, T))
+    fit2 <- try(bootstrap.nlsfit(x=afm^2, y=y, bsamples=boots, fn=fitfn2, par.guess=c(1), mask=c(F, T, T), success.infos=1:4))
     if(inherits(fit2, "try-error")){
         weights[2] <- 0
         fit2 <- list(t0=c(0), se=c(0), t=array(rep(0, nboot), dim=c(nboot, 1)), failed=T)
@@ -83,12 +87,15 @@ for(iz in 0:zmax) {
         weights[2] <- c(exp(-1*(fit2$chisqr + 2 * 1 - length(fit1$x))/2))
         fit2$failed=F
     }
-    weights <- weights/sum(weights)
-    print(weights)
-    average <- c(fit1$t0[1], fit2$t0[2])*weights
-    averageboots <- fit1$t[, 1]*weights[1] + fit2$t[, 1]*weights[2]
-    averagese <- sd(averageboots)
     
+    ## AIC
+    weights <- weights/sum(weights)
+#~     print(weights)
+    average <- sum(c(fit1$t0[1], fit2$t0[1])*weights)
+    averageboot <- fit1$t[, 1]*weights[1] + fit2$t[, 1]*weights[2]
+    averagese <- sd(averageboot, na.rm=T)
+    
+    ## plot with Histogramm of Bootstrap samples at the left side
     layout.matrix <- matrix(c(1, 2, 2, 2), nrow = 1, ncol = 4)
     layout(mat = layout.matrix,
            heights = 1, # Heights of the two rows
@@ -97,7 +104,8 @@ for(iz in 0:zmax) {
     mai <- par("mai")
     par(mai=c(mai[1], mai[2], mai[3], 0))
     
-    myhist <- hist(averageboots, plot = FALSE, breaks=50)
+    myhist <- hist(averageboot, plot = FALSE, breaks=50)
+#~     myhist <- hist(c(fit1$t[, 1], fit2$t[, 1]), plot = FALSE, breaks=50)
     nbars <- length(myhist$counts)
     midbreaks <- (myhist$breaks[2:(nbars+1)] + myhist$breaks[1:nbars]) / 2
     plot(x=myhist$counts, y=midbreaks, 
@@ -110,25 +118,40 @@ for(iz in 0:zmax) {
          xlab="a^2[fm^2]", ylab="", main=paste("Z", iz, "sigma", isigma), 
          plot.range=c(0, 0.07957^2), xlim=c(0, 0.07957^2), 
          ylim=range(myhist$breaks, fit1$t0[1] + c(-1, 1)*fit1$se[1], fit1$y+fit1$dy, fit1$y-fit1$dy),
-         yaxt="n", col="black", col.band="black", opacity.band=weights[1])
+         yaxt="n", col="black", col.band="black", col.line="black", opacity.band=weights[1])
     if(!fit2$failed) {
         plot(fit2, rep=T,
-         plot.range=c(0, 0.06821^2),
-         yaxt="n", col="blue", col.band="blue", opacity.band=weights[2])
+         plot.range=c(0, 0.06821^2), xlim=c(0, 0.06821^2),
+         yaxt="n", col="blue", col.band="blue", col.line="blue", opacity.band=weights[2])
      }
+     
+    plotwitherror(x=0, y=average, dy=averagese, col="red", pch=21, rep=T)
+    plotwitherror(x=0.0002, y=fit1$t0[1], dy=fit1$se[1], col="magenta", pch=21, rep=T)
+    plotwitherror(x=0.0002, y=fit2$t0[1], dy=fit2$se[1], col="magenta", pch=21, rep=T)
+    legend("top", legend=c(paste("linear, w=", format(weights[1], digits=2)), paste("constant, w=", format(weights[2], digits=2)), "result", "single results"),
+            col=c("black", "blue", "red", "magenta"), pch=c(1, 1, 21, 21), lty=c(1, 1, NA, NA))
     axis(side=4)
     par(mai=mai)
     
-    pull <- (fit1$t0[1]-fit1$y[3])/fit1$se[1]
-    dsys <- abs(fit1$t0[1]-fit1$y[3])*erf(abs(pull)/sqrt(2))
+    pull <- (average-fit1$y[3])/averagese
+    dsys <- abs(average-fit1$y[3])*erf(abs(pull)/sqrt(2))
     
-    res <- list(mean=fit1$t0[1], sd=fit1$se[1], boot=fit1$t[, 1], pull=pull, cutoff=(fit1$t0[1]-fit1$y[3])/fit1$t0[1], 
-                dsys=dsys, bootsys=fit1$t[, 1] + rnorm(nboot, 0, dsys))
+    res <- list(mean=average, sd=averagese, boot=averageboot, pull=pull, cutoff=(average-fit1$y[3])/average, 
+                dsys=dsys, bootsys=averageboot + rnorm(nboot, 0, dsys))
     reslist[[paste0("iz", iz, "sigma", isigma)]] <- res
+    
+    pulllin <- (fit1$t0[1]-fit1$y[3])/fit1$se[1]
+    dsyslin <- abs(fit1$t0[1]-fit1$y[3])*erf(abs(pulllin)/sqrt(2))
+    
+    reslin <- list(mean=fit1$t0[1], sd=fit1$se[1], boot=fit1$t[, 1], pull=pulllin, cutoff=(fit1$t0[1]-fit1$y[3])/fit1$t0[1], 
+                dsys=dsyslin, bootsys=fit1$t[, 1] + rnorm(nboot, 0, dsyslin))
+    reslistlinear[[paste0("iz", iz, "sigma", isigma)]] <- reslin
   }
 }
 
-saveRDS(object=reslist, file=sprintf("%s/contlimit_%s_m%d_%s_%s.RDS", opt$plotfolder, opt$kernel, opt$bmass, opt$momentum, opt$error))
+saveRDS(object=reslist, file=sprintf("%s/contlimit_%s_m%d_%s_%s_AIC.RDS", opt$plotfolder, opt$kernel, opt$bmass, opt$momentum, opt$error))
+saveRDS(object=reslistlinear, file=sprintf("%s/contlimit_%s_m%d_%s_%s_linear.RDS", opt$plotfolder, opt$kernel, opt$bmass, opt$momentum, opt$error))
+#~ saveRDS(object=fit1, file=sprintf("%s/contlimit_%s_m%d_%s_%s_linear_fit.RDS", opt$plotfolder, opt$kernel, opt$bmass, opt$momentum, opt$error))
 #~ reslist[[1]]
 #~ unlist(sapply(reslist, getElement, name="pull"))
 #~ reslist$metadata <- opt
