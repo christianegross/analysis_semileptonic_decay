@@ -16,7 +16,7 @@ if (TRUE) {
                 help = "kernel [default %default]"),
     make_option(c("-f", "--folder"), type = "character", default = "-1",
                 help = "folder with results [default %default]"),
-    make_option(c("-n", "--normnumber"), type = "integer", default = "0",
+    make_option(c("-n", "--normnumber"), type = "integer", default = 0,
                 help = "index of norm to be analysed [default %default]")#,
     #~     make_option(c("-b", "--bmass"), type = "integer", default = "-1",
     #~     help = "index for bmass [default %default]")
@@ -121,7 +121,7 @@ dev.off()
 print(paste0(opt$basename, ifelse(opt$basename==opt$input, "_chosen_data", ""), ".csv"))
 write.table(res, paste0(opt$basename, ifelse(opt$basename==opt$input, "_chosen_data", ""), ".csv"), row.names=F)
 
-boots <- chosenDGarray(basepath=opt$folder, tablechosen=paste0(opt$basename, ifelse(opt$basename==opt$input, "_chosen_data", ""), ".csv"))[1, , , ]
+boots <- chosenDGarray(basepath=opt$folder, tablechosen=paste0(opt$basename, ifelse(opt$basename==opt$input, "_chosen_data", ""), ".csv"), ik=opt$normnumber)[1, , , ]
 saveRDS(boots, file=paste0(opt$basename, "_boots_err_stat.RDS"))
 boots_sys <- addsyshltDGarray(boots, paste0(opt$basename, ifelse(opt$basename==opt$input, "_chosen_data", ""), ".csv"))
 saveRDS(boots_sys, file=paste0(opt$basename, "_boots_err_stat_HLT.RDS"))
@@ -140,7 +140,7 @@ for (iz in 0:zmax) {
                                        "kernel", "kernelbar", "kernelbarmkernel", "aM",
                                        paste0("column", 8:18))))
     if(!inherits(data, "try-error")) {
-      data <- data[-seq(1, 3), ]
+      data <- data[-seq(1, 9), ]
       data$ik <- as.integer(data$ik)
       data <- data[data$spectreflag == 0, ]
       plot(NA, xlim=c(min(data$omega), max(data$omega)),
