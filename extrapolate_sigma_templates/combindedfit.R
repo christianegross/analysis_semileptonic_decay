@@ -34,7 +34,7 @@ xseq <- seq(from=xlim[1]*(1-2*sign(xlim[1])), to=xlim[2]*(1+0.5*sign(xlim[2])), 
 y1 <- predict.bootstrapfit.comb(fitresult, x=xseq, maskfn=T)
 y2 <- predict.bootstrapfit.comb(fitresult, x=xseq, maskfn=F)
 
-plotwitherror(x=fitresult$x, y=fitresult$y, dy=fitresult$dy, col=ifelse(fitresult$maskfn, cols[1], cols[2]), pch=ifelse(fitresult$maskfn, pchs[1], pchs[2]), xlim=xlim, ylim=ylim, ...)
+plotwitherror(x=fitresult$x, y=fitresult$y, dy=fitresult$dy, col=ifelse(fitresult$tofn$maskfn, cols[1], cols[2]), pch=ifelse(fitresult$tofn$maskfn, pchs[1], pchs[2]), xlim=xlim, ylim=ylim, ...)
 points(x=xseq, y=y1$val, type = "l", col=cols[1])
 points(x=xseq, y=y2$val, type = "l", col=cols[2])
 
@@ -43,15 +43,15 @@ polyval1 <- c(y1$val + y1$err, rev(y1$val - y1$err))
 polyval2 <- c(y2$val + y2$err, rev(y2$val - y2$err))
 
 pcol1 <- col2rgb(cols[1], alpha=TRUE)/255 
-pcol1[4] <- 0.5
+pcol1[4] <- 0.2
 pcol1 <- rgb(red=pcol1[1],green=pcol1[2],blue=pcol1[3],alpha=pcol1[4])
 pcol2 <- col2rgb(cols[2], alpha=TRUE)/255 
-pcol2[4] <- 0.5
+pcol2[4] <- 0.2
 pcol2 <- rgb(red=pcol2[1],green=pcol2[2],blue=pcol2[3],alpha=pcol2[4])
 polygon(x=c(xseq, rev(xseq)), y=polyval1, col=pcol1, lty=0, lwd=0.001, border=pcol1)
 polygon(x=c(xseq, rev(xseq)), y=polyval2, col=pcol2, lty=0, lwd=0.001, border=pcol2)
 }
-plotwitherror(x=fitresult$x, y=fitresult$y, dy=fitresult$dy, col=ifelse(fitresult$maskfn, cols[1], cols[2]), pch=ifelse(fitresult$maskfn, pchs[1], pchs[2]), xlim=xlim, ylim=ylim, rep=T, ...)
+plotwitherror(x=fitresult$x, y=fitresult$y, dy=fitresult$dy, col=ifelse(fitresult$tofn$maskfn, cols[1], cols[2]), pch=ifelse(fitresult$tofn$maskfn, pchs[1], pchs[2]), xlim=xlim, ylim=ylim, rep=T, ...)
 
 }
 

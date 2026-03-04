@@ -63,6 +63,9 @@ D96_table <- read.table(sprintf("%s/cD211.054.96/%s/%s/chosen_%sBJnu_m%d_%s_ik0.
 
 reslist <- list()
 reslistlinear <- list()
+reslistsys <- list()
+reslistlinearsys <- list()
+res <- data.frame(iz=c(), isigma=c(), DG=c(), dDG=c(), dsys=c(), dtot=c(), pull=c(), cutoff=c(), extrapolation=c())
 
 
 fitfn1 <- function(pars, x, boot.r, ...) pars[1] + x*pars[2]
@@ -134,23 +137,39 @@ for(iz in 0:zmax) {
     par(mai=mai)
     
     pull <- (average-fit1$y[3])/averagese
+    ## change this to be like in paper
     dsys <- abs(average-fit1$y[3])*erf(abs(pull)/sqrt(2))
+    dtot <- sqrt(sum(c(fit1$se[1], fit2$se[1])^2*weights) + sum(c(fit1$t0[1]-average, fit2$t0[1]-average)^2*weights))
+    dsys <- sqrt(dtot^2-averagese^2)
     
-    res <- list(mean=average, sd=averagese, boot=averageboot, pull=pull, cutoff=(average-fit1$y[3])/average, 
-                dsys=dsys, bootsys=averageboot + rnorm(nboot, 0, dsys))
+    res <- list(mean=average, sd=averagese, boot=averageboot, pull=0, cutoff=(average-fit1$y[3])/average, 
+                dsys=0, dtot=averagese, iz=iz, isigma=isigma)
     reslist[[paste0("iz", iz, "sigma", isigma)]] <- res
+    res <- list(mean=average, sd=averagese, boot=averageboot + rnorm(nboot, 0, dsys), pull=pull, cutoff=(average-fit1$y[3])/average, 
+                dsys=dsys, dtot=dtot, iz=iz, isigma=isigma)
+    reslistsys[[paste0("iz", iz, "sigma", isigma)]] <- res
     
     pulllin <- (fit1$t0[1]-fit1$y[3])/fit1$se[1]
     dsyslin <- abs(fit1$t0[1]-fit1$y[3])*erf(abs(pulllin)/sqrt(2))
     
-    reslin <- list(mean=fit1$t0[1], sd=fit1$se[1], boot=fit1$t[, 1], pull=pulllin, cutoff=(fit1$t0[1]-fit1$y[3])/fit1$t0[1], 
-                dsys=dsyslin, bootsys=fit1$t[, 1] + rnorm(nboot, 0, dsyslin))
+    reslin <- list(mean=fit1$t0[1], sd=fit1$se[1], boot=fit1$t[, 1], pull=0, cutoff=(fit1$t0[1]-fit1$y[3])/fit1$t0[1], 
+                dsys=0, dtot=fit1$se[1], iz=iz, isigma=isigma)
     reslistlinear[[paste0("iz", iz, "sigma", isigma)]] <- reslin
+    reslin <- list(mean=fit1$t0[1], sd=fit1$se[1], boot=fit1$t[, 1] + rnorm(nboot, 0, dsyslin), pull=pulllin, cutoff=(fit1$t0[1]-fit1$y[3])/fit1$t0[1], 
+                dsys=dsyslin, dtot=sqrt(fit1$se[1]^2+dsyslin^2), iz=iz, isigma=isigma)
+    reslistlinearsys[[paste0("iz", iz, "sigma", isigma)]] <- reslin
+    
+    
+    res <- rbind(res, data.frame(iz=iz, isigma=isigma, DG=average, dDG=averagese, dsys=dsys, dtot=dtot, pull=pull, cutoff=(average-fit1$y[3])/average, extrapolation="aic"))
+    res <- rbind(res, data.frame(iz=iz, isigma=isigma, DG=fit1$t0[1], dDG=fit1$se[1], dsys=dsyslin, dtot=sqrt(fit1$se[1]^2+dsyslin^2), pull=pulllin, cutoff=(fit1$t0[1]-fit1$y[3])/fit1$t0[1], extrapolation="linear"))
   }
 }
 
 saveRDS(object=reslist, file=sprintf("%s/contlimit_%s_m%d_%s_%s_AIC.RDS", opt$plotfolder, opt$kernel, opt$bmass, opt$momentum, opt$error))
 saveRDS(object=reslistlinear, file=sprintf("%s/contlimit_%s_m%d_%s_%s_linear.RDS", opt$plotfolder, opt$kernel, opt$bmass, opt$momentum, opt$error))
+saveRDS(object=reslistsys, file=sprintf("%s/contlimit_%s_m%d_%s_%s_cont_AIC.RDS", opt$plotfolder, opt$kernel, opt$bmass, opt$momentum, opt$error))
+saveRDS(object=reslistlinearsys, file=sprintf("%s/contlimit_%s_m%d_%s_%s_cont_linear.RDS", opt$plotfolder, opt$kernel, opt$bmass, opt$momentum, opt$error))
+write.table(res, file=sprintf("%s/contlimit_%s_m%d_%s_%s_cont.csv", opt$plotfolder, opt$kernel, opt$bmass, opt$momentum, opt$error))
 #~ saveRDS(object=fit1, file=sprintf("%s/contlimit_%s_m%d_%s_%s_linear_fit.RDS", opt$plotfolder, opt$kernel, opt$bmass, opt$momentum, opt$error))
 #~ reslist[[1]]
 #~ unlist(sapply(reslist, getElement, name="pull"))
