@@ -26,9 +26,6 @@ if (TRUE) {
   opt <- args$options
 }
 
-if(opt$folder=="-1") {
-  opt$folder <- sprintf("~/Documents/heavymesons/data/%s/%s/%s", opt$channel, opt$ensemble, opt$momentum)
-}
 if(opt$basename=="") opt$basename <- opt$input
 
 
@@ -46,6 +43,8 @@ if(opt$mode=="DG") {
 
 erf <- function(x) 2 * pnorm(x * sqrt(2)) - 1
 
+print(opt$input)
+
 chosen <- read.table(opt$input, header=T, sep=",")
 if(length(chosen$ieps)==0) chosen <- read.table(opt$input, header=T, sep=" ")
 if(length(chosen$ieps)==0) stop("cannot read in resultfile")
@@ -53,12 +52,17 @@ if(length(chosen$ieps)==0) stop("cannot read in resultfile")
 res <- data.frame(ik=c(), spectreflag=c(), lambda_start=c(), lambdalambda_start=c(), Bnorm=c(), 
                   A0=c(), AA0_min=c(), AA0_ref=c(), AA0=c(), BnormB_ref=c(), BnormB=c(), 
                   C_ref=c(), C=c(), rho=c(), drho_stat=c(), drho_syst=c(), drho_tot=c(), resflag=c(), 
-                  rfact=c(), iz=c(), ieps=c(), eps=c())
+                  rfact=c(), iz=c(), ieps=c(), eps=c(), mass=c())
 ressyserr <- data.frame(ik=c(), spectreflag=c(), lambda_start=c(), lambdalambda_start=c(), Bnorm=c(), 
                         A0=c(), AA0_min=c(), AA0_ref=c(), AA0=c(), BnormB_ref=c(), BnormB=c(), 
                         C_ref=c(), C=c(), rho=c(), drho_stat=c(), drho_syst=c(), drho_tot=c(), resflag=c(), 
-                        rfact=c(), iz=c(), ieps=c(), eps=c())
+                        rfact=c(), iz=c(), ieps=c(), eps=c(), mass=c())
 
+
+tmpmass <- read.table(sprintf("%s/%s_%.2e/output%s/DGammaDq2.dat", opt$folder, opt$kernel, 10^4, modefolder), header=F)
+mass <- unique(tmpmass$V1)
+if(length(mass)>1) stop("more than one mass read")
+rm(tmpmass)
 for (iz in 0:zmax) {
   for(ieps in unique(chosen$ieps)) {
     
@@ -75,7 +79,7 @@ for (iz in 0:zmax) {
       datastabaa0 <- datastab[datastab$spectreflag==1 & datastab$ik==opt$n, ]
       datastabaa0 <- datastabaa0[length(datastabaa0$ik), ]
       #~                     datastabaa0$rfact <- rfact
-      datastabaa0 <- cbind(datastabaa0, data.frame(rfact=rfact, iz=iz, ieps=ieps, eps=chosen$eps[chosen$iz==iz & chosen$ieps==ieps]))
+      datastabaa0 <- cbind(datastabaa0, data.frame(rfact=rfact, iz=iz, ieps=ieps, eps=chosen$eps[chosen$iz==iz & chosen$ieps==ieps], mass=mass))
 #~       print(datastabaa0)
       res <- rbind(res, datastabaa0)
       
@@ -92,7 +96,7 @@ for (iz in 0:zmax) {
       datastabaa0syserr <- datastabsyserr[datastabsyserr$spectreflag==1 & datastabsyserr$ik==opt$n, ]
       datastabaa0syserr <- datastabaa0syserr[length(datastabaa0syserr$ik), ]
       #~                     datastabaa0$rfact <- rfact
-      datastabaa0syserr <- cbind(datastabaa0syserr, data.frame(rfact=rfact, iz=iz, ieps=ieps, eps=chosen$eps[chosen$iz==iz & chosen$ieps==ieps]))
+      datastabaa0syserr <- cbind(datastabaa0syserr, data.frame(rfact=rfact, iz=iz, ieps=ieps, eps=chosen$eps[chosen$iz==iz & chosen$ieps==ieps], mass=mass))
       ressyserr <- rbind(ressyserr, datastabaa0syserr)
       
     }
@@ -104,9 +108,13 @@ stopifnot(dim(ressyserr)==dim(res))
 
 res$pull <- (res$rho-ressyserr$rho)/res$drho_stat
 res$dsys <- abs(res$rho-ressyserr$rho)*erf(abs(res$pull)/sqrt(2))
-seed <- paste0(charToRaw(paste0(as.character(opt$momentum), as.character(opt$bmass), "s", collapse="")), collapse="") ## convert characteristics of system to long string
-  set.seed(as.integer(as.numeric(seed)%%131071)) ## convert string to numeric, reduce number of digits by taking modulo the 17th Mersenne Prime
 
+folderelements <- strsplit(opt$folder, "/")
+ensemble <- folderelements[[1]][sapply(folderelements, function(x) grepl("211", x, fixed=T))[, 1]]
+if(length(ensemble) != 1) ensemble <- "someens"
+seed <- charToRaw(paste0(as.character(ensemble), as.character(opt$momentum), as.character(opt$bmass), "s", collapse="")) ## convert characteristics of system to long string
+seed <- readBin(seed, 'integer')%%131071 ## convert string to numeric, reduce number of digits by taking modulo the 17th Mersenne Prime
+set.seed(seed)
 
 
 #~ print(res)
@@ -121,7 +129,7 @@ dev.off()
 print(paste0(opt$basename, ifelse(opt$basename==opt$input, "_chosen_data", ""), ".csv"))
 write.table(res, paste0(opt$basename, ifelse(opt$basename==opt$input, "_chosen_data", ""), ".csv"), row.names=F)
 
-boots <- chosenDGarray(basepath=opt$folder, tablechosen=paste0(opt$basename, ifelse(opt$basename==opt$input, "_chosen_data", ""), ".csv"), ik=opt$normnumber)[1, , , ]
+boots <- chosenDGarray(basepath=opt$folder, tablechosen=paste0(opt$basename, ifelse(opt$basename==opt$input, "_chosen_data", ""), ".csv"), kernel=opt$kernel, ik=opt$normnumber)[1, , , ]
 saveRDS(boots, file=paste0(opt$basename, "_boots_err_stat.RDS"))
 boots_sys <- addsyshltDGarray(boots, paste0(opt$basename, ifelse(opt$basename==opt$input, "_chosen_data", ""), ".csv"))
 saveRDS(boots_sys, file=paste0(opt$basename, "_boots_err_stat_HLT.RDS"))

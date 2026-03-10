@@ -27,7 +27,7 @@ if (TRUE) {
                 help = "log10 of lowest analysed A/B factor to be shown in plotting [default %default]"),
     make_option(c("-u", "--highr"), type = "integer", default = "6",
                 help = "log10 of highest analysed A/B factor [default %default]"),
-    make_option(c("-n", "--normnumber"), type = "integer", default = 1,
+    make_option(c("-n", "--normnumber"), type = "integer", default = 0,
                 help = "index of norm to be analysed [default %default]"),
     make_option(c("--drawhorizontal"), action = "store_true", default = FALSE,
                 help = "if true, draws horizontal lines for each endpoint [default %default]"),
