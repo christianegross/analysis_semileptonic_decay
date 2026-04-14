@@ -20,7 +20,9 @@ option_list <- list(
     make_option(c("-b", "--bmass"), type = "integer", default = "-1",
     help = "index for bmass [default %default]"),
     make_option(c("-n", "--normnumber"), type = "integer", default = "0",
-    help = "index of norm to be analysed [default %default]")
+    help = "index of norm to be analysed [default %default]"),
+    make_option(c("--includeE112"), action = "store_true", default = FALSE,
+                help = "if true, include E112 [default %default]")
     
 )
 parser <- OptionParser(usage = "%prog [options]", option_list = option_list)
@@ -53,7 +55,8 @@ bmassaddon <- ifelse(opt$bmass==-1, "", sprintf("_bmass_%d", opt$bmass))
 
 
 
-ensembles <- c("cB211.07.64", "cC211.06.80", "cD211.054.96")
+if(opt$includeE112) ensembles <- c("cB211.07.64", "cC211.06.80", "cD211.054.96", "cE211.044.112")
+if(!opt$includeE112) ensembles <- c("cB211.07.64", "cC211.06.80", "cD211.054.96")
 
 combined <- read.table(sprintf("%s/rfact_%s_%s%s_ik%d_%s_comb.csv", opt$plotfolder, opt$mode, opt$kernel, bmassaddon, opt$normnumber, opt$momentum), header=T)
 if(length(combined$ieps)==0) combined <- read.table(sprintf("%s/rfact_%s_%s%s_ik%d_%s_comb.csv", opt$plotfolder, opt$mode, opt$kernel, bmassaddon, opt$normnumber, opt$momentum), header=T, sep=",")

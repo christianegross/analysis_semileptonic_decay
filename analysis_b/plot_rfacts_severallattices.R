@@ -34,7 +34,9 @@ if (TRUE) {
     make_option(c("--numsuggest"), type = "integer", default = 2,
                 help = "suggest the point with highest A/A0 that is compatible with the numsuggest points with smaller A/A0 [default %default]"),
     make_option(c("--compareerror"), type = "character", default = "sum",
-                help = "Give the mode with which to calculate the compatibility matrix [default %default]")
+                help = "Give the mode with which to calculate the compatibility matrix [default %default]"),
+    make_option(c("--includeE112"), action = "store_true", default = FALSE,
+                help = "if true, include E112 [default %default]")
     
   )
   parser <- OptionParser(usage = "%prog [options]", option_list = option_list)
@@ -96,9 +98,10 @@ rfacts <- 10^(opt$lowr:opt$highr)
 bmassaddon <- ifelse(opt$bmass==-1, "", sprintf("_bmass_%d", opt$bmass))
 
 
-pdf(sprintf("%s/rfact_%s_%s%s_ik%s_%s.pdf", opt$plotfolder, opt$mode, opt$kernel, bmassaddon, opt$normnumber, opt$momentum), title="", height=11.7*1.5, width=16.6)
+pdf(sprintf("%s/rfact_%s_%s%s_ik%s_%s.pdf", opt$plotfolder, opt$mode, opt$kernel, bmassaddon, opt$normnumber, opt$momentum), title="", height=11.7*1.5*ifelse(opt$includeE112, 1.5, 1), width=16.6)
 
-ensembles <- c("cB211.07.64", "cC211.06.80", "cD211.054.96")
+if(opt$includeE112) ensembles <- c("cB211.07.64", "cC211.06.80", "cD211.054.96", "cE211.044.112")
+if(!opt$includeE112) ensembles <- c("cB211.07.64", "cC211.06.80", "cD211.054.96")
 rselectionlist <- list()
 
 for(ensemble in ensembles) {
@@ -125,7 +128,7 @@ pcol <- rgb(red=pcol[1],green=pcol[2],blue=pcol[3],alpha=pcol[4])
 
 for(iz in 0:zmax) {
   for(iepsilon in 0:min(opt$epsmax, 40)) {
-    par(mfrow=c(3, 1))
+    par(mfrow=c(length(ensembles), 1))
     reslist <- list()
     addreslist <- list()
     suggestionlist <- list()
@@ -150,7 +153,8 @@ for(iz in 0:zmax) {
           additionalres <- rbind(additionalres, datastab[datastab$spectreflag==1 & datastab$ik!=opt$norm, ])
           datastabaa0$rfact <- rfact
           res <- rbind(res, datastabaa0)
-          
+#~           print(filename)
+        
         }
       }
       if(length(res$AA0_ref) > 1) {
@@ -163,7 +167,6 @@ for(iz in 0:zmax) {
         if(suggestion$foundsuggestion) masklim <- res$resflag==1 & res$rfact>=max(10^opt$plotlowr, min(rfacts[max(1, suggestion$rfactindex-3)], rfacts[max(1, rfactindexsolve-1)])) & res$rfact<=min(10^opt$highr, ifelse(suggestion$rfactindex > length(rfacts)-3, 10^opt$highr, rfacts[suggestion$rfactindex+3]))
         if(!suggestion$foundsuggestion) masklim <- res$resflag==1 & res$rfact>=10^opt$plotlowr & res$rfact<=10^opt$highr
         if(!suggestion$foundsuggestion & resultsselected) masklim <- res$resflag==1 & res$rfact>=max(10^opt$plotlowr, rfacts[max(1, rfactindexsolve-1)]) & res$rfact<=10^opt$highr
-        
         additionalres <- additionalres[order(additionalres$AA0_ref), ]
         reslist[[ensemble]] <- res
         addreslist[[ensemble]] <- additionalres
@@ -182,7 +185,7 @@ for(iz in 0:zmax) {
         
         ## plot additonal norms as grey points in background
         plot(NA, xlab="A/A0", ylab="rho", 
-             main=paste(opt$channel, opt$ensemble, opt$momentum, opt$mode, "eps", iepsilon, "Z", iz, bmassaddon), 
+             main=paste(ensemble, opt$channel, opt$ensemble, opt$momentum, opt$mode, "eps", iepsilon, "Z", iz, bmassaddon), 
              log="x", 
              ylim=range(ylims),
              xlim=range(res$AA0_ref[res$resflag==0]))
