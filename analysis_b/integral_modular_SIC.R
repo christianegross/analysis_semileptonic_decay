@@ -62,7 +62,7 @@ res <- res[res$kernel==opt$kernel, ]
 masses <- read.table(sprintf("%s/masseslimitsingle.csv", opt$massfolder), header=T)
 masses <- masses[masses$ensemble==opt$ensemble, ]
 resint <- data.frame(iz=c(), int=c(), dint=c())
-bsint <- array(NA, dim=c(zmax+2, 1000))
+bsint <- array(NA, dim=c(5, zmax+2, 1000))
 boot <- readRDS(sprintf("%s/%s_SCI_sigma_%s_m%d_%s.RDS", opt$folder, opt$mode, opt$kernel, opt$bmass, errstring))
 # meanboot <- apply(boot, c(1, 2), mean)
 # sdboot <- apply(boot, c(1, 2), mean)
@@ -70,7 +70,7 @@ boot <- readRDS(sprintf("%s/%s_SCI_sigma_%s_m%d_%s.RDS", opt$folder, opt$mode, o
 # print((meanmean - meanboot)/sdboot)
 # res[res$mass==opt$bmass, ]
 
-pdf(sprintf("%s/%s_SIC_integral_m%d_%s.pdf", opt$plotfolder, opt$mode, opt$bmass, errstring), title="")
+pdf(sprintf("%s/%s_SIC_integral_%s_m%d_%s.pdf", opt$plotfolder, opt$mode, opt$kernel, opt$bmass, errstring), title="")
 
 omegamax <- 0.5*(1-(masses$M_F[opt$bmass]/masses$M_I[opt$bmass])^2)
 xval <- (c(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 9.5)/10 * omegamax)^2
@@ -118,9 +118,31 @@ for(iz in 0:zmax) {
   bsintspline <- apply(X=bsamples, MARGIN=1, FUN=splineintegral, xval=xval, continue = T,
                        replacelower=F, higherlimit = upperbound,
                        lowerlimit=upperbound, replaceindex=0)
+  meaninttrapezoidal <- trapezoidal(yval=yval, xval=xval, continue=T,
+                                    replacelower=F, higherlimit=upperbound)
+  bsinttrapezoidal <- apply(X=bsamples, MARGIN=1, FUN=trapezoidal, xval=xval, continue = T,
+                            replacelower=F, higherlimit = upperbound)
 
-  resint <- rbind(resint,data.frame(iz=iz, int=mean(bsintspline), dint=sd(bsintspline)) )
-  bsint[iz+1, ] <- bsintspline
+  meanintsimpson <- simpson(yval=yval, xval=xval, continue=T,
+                            replacelower=F, higherlimit=upperbound)
+  bsintsimpson <- apply(X=bsamples, MARGIN=1, FUN=simpson, xval=xval, continue = T,
+                        replacelower=F, higherlimit = upperbound)
+
+  meanint <- (meanintspline+meaninttrapezoidal+meanintsimpson)/3
+  dtot <- sqrt((sd(bsintspline)^2 + sd(bsinttrapezoidal)^2 + sd(bsintsimpson)^2 + (meanint-meanintspline)^2 + (meanint-meaninttrapezoidal)^2 + (meanint-meaninttrapezoidal)^2)/3)
+  bstot <- (bsintspline + bsinttrapezoidal + bsintsimpson)/3
+  dsys <- sqrt(dtot^2 - sd(bstot)^2)
+
+
+  resint <- rbind(resint,data.frame(iz=iz, int=c(meanintspline, meaninttrapezoidal, meanintsimpson, meanint),
+                                    dint=c(sd(bsintspline), sd(bsinttrapezoidal), sd(bsintsimpson), sd(bstot)) ,
+                                    dsys=c(0, 0, 0, dsys), type=c("spline", "trapezoidal", "simpson", "average")))
+
+  bsint[1, iz+1, ] <- bsintspline
+  bsint[2, iz+1, ] <- bsinttrapezoidal
+  bsint[3, iz+1, ] <- bsintsimpson
+  bsint[4, iz+1, ] <- bstot
+  bsint[5, iz+1, ] <- bstot + rnorm(1000, 0, dsys)
 }
 
 ## sum of all Z-components
@@ -169,10 +191,34 @@ meanintspline <- splineintegral(yval=yval, xval=xval, continue = T,
 bsintspline <- apply(X=bsamples, MARGIN=1, FUN=splineintegral, xval=xval, continue = T,
                      replacelower=F, higherlimit = upperbound,
                      lowerlimit=upperbound, replaceindex=0)
+meaninttrapezoidal <- trapezoidal(yval=yval, xval=xval, continue=T,
+                                  replacelower=F, higherlimit=upperbound)
+bsinttrapezoidal <- apply(X=bsamples, MARGIN=1, FUN=trapezoidal, xval=xval, continue = T,
+                          replacelower=F, higherlimit = upperbound)
 
-resint <- rbind(resint,data.frame(iz=zmax+1, int=mean(bsintspline), dint=sd(bsintspline)) )
-bsint[zmax+2, ] <- bsintspline
+meanintsimpson <- simpson(yval=yval, xval=xval, continue=T,
+                          replacelower=F, higherlimit=upperbound)
+bsintsimpson <- apply(X=bsamples, MARGIN=1, FUN=simpson, xval=xval, continue = T,
+                      replacelower=F, higherlimit = upperbound)
+
+meanint <- (meanintspline+meaninttrapezoidal+meanintsimpson)/3
+dtot <- sqrt((sd(bsintspline)^2 + sd(bsinttrapezoidal)^2 + sd(bsintsimpson)^2 + (meanint-meanintspline)^2 + (meanint-meaninttrapezoidal)^2 + (meanint-meaninttrapezoidal)^2)/3)
+bstot <- (bsintspline + bsinttrapezoidal + bsintsimpson)/3
+dsys <- sqrt(dtot^2 - sd(bstot)^2)
+
+
+resint <- rbind(resint,data.frame(iz=zmax+1, int=c(meanintspline, meaninttrapezoidal, meanintsimpson, meanint),
+                                  dint=c(sd(bsintspline), sd(bsinttrapezoidal), sd(bsintsimpson), sd(bstot)) ,
+                                  dsys=c(0, 0, 0, dsys), type=c("spline", "trapezoidal", "simpson", "average")))
+
+bsint[1, zmax+2, ] <- bsintspline
+bsint[2, zmax+2, ] <- bsinttrapezoidal
+bsint[3, zmax+2, ] <- bsintsimpson
+bsint[4, zmax+2, ] <- bstot
+bsint[5, zmax+2, ] <- bstot + rnorm(1000, 0, dsys)
 
 ## save results
-write.table(resint, sprintf("%s/%s_SIC_integral_%s_m%d_%s.csv", opt$plotfolder, opt$mode, opt$kernel, opt$bmass, errstring), row.names=F)
-saveRDS(bsint, sprintf("%s/%s_SIC_integral_%s_m%d_%s.RDS", opt$plotfolder, opt$mode, opt$kernel, opt$bmass, errstring))
+write.table(resint, sprintf("%s/%s_SIC_integral_%s_m%d_%s_int.csv", opt$plotfolder, opt$mode, opt$kernel, opt$bmass, errstring), row.names=F)
+saveRDS(bsint[1:3,,], sprintf("%s/%s_SIC_integral_%s_m%d_%s_all.RDS", opt$plotfolder, opt$mode, opt$kernel, opt$bmass, errstring))
+saveRDS(bsint[5,,], sprintf("%s/%s_SIC_integral_%s_m%d_%s_int.RDS", opt$plotfolder, opt$mode, opt$kernel, opt$bmass, errstring))
+saveRDS(bsint[4,,], sprintf("%s/%s_SIC_integral_%s_m%d_%s.RDS", opt$plotfolder, opt$mode, opt$kernel, opt$bmass, errstring))
