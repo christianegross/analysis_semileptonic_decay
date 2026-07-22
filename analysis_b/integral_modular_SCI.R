@@ -58,7 +58,7 @@ res <- read.table(sprintf("%s/%s_SCI_contlimit_%s_m%d_%s_cont.csv", opt$folder, 
 res <- res[res$extrapolation=="linear", ]
 
 masses <- read.table(sprintf("%s/masseslimit.csv", opt$massfolder), header=T)
-resint <- data.frame(iz=c(), int=c(), dint=c())
+resint <- data.frame(iz=c(), int=c(), dint=c(), dsys=c(), pull=c(), type=c())
 bsint <- array(NA, dim=c(5, zmax+2, 1000))
 boot <- readRDS(sprintf("%s/%s_SCI_contlimit_%s_m%d_%s_linear.RDS", opt$folder, opt$mode, opt$kernel, opt$bmass, errstring))
 boot <- unlist(sapply(boot, getElement, name="boot"))
@@ -124,14 +124,22 @@ for(iz in 0:zmax) {
                         replacelower=F, higherlimit = upperbound)
 
   meanint <- (meanintspline+meaninttrapezoidal+meanintsimpson)/3
-  dtot <- sqrt((sd(bsintspline)^2 + sd(bsinttrapezoidal)^2 + sd(bsintsimpson)^2 + (meanint-meanintspline)^2 + (meanint-meaninttrapezoidal)^2 + (meanint-meaninttrapezoidal)^2)/3)
   bstot <- (bsintspline + bsinttrapezoidal + bsintsimpson)/3
-  dsys <- sqrt(dtot^2 - sd(bstot)^2)
-
+  
+  sdint <- sd(bstot)
+  
+  ## P_ij=(O_i-O_j)/Delta_ij
+## Delta_ij=sd((bs_i+bs_j)/2)
+## Delta_sys=max_ij(|O_i-O_j|*erf(P_ij/sqrt(2)))
+differences <- c(meanintspline - meaninttrapezoidal, meaninttrapezoidal-meanintsimpson, meanintsimpson-meanintspline)
+  ddifferences <- c(sd((bsintspline+bsinttrapezoidal)/2), sd((bsintsimpson+bsinttrapezoidal)/2), sd((bsintspline+bsintsimpson)/2))
+  pulls <- differences / ddifferences
+  dsys <- max(differences*erf(pulls/sqrt(2)))
 
   resint <- rbind(resint,data.frame(iz=iz, int=c(meanintspline, meaninttrapezoidal, meanintsimpson, meanint),
-                                    dint=c(sd(bsintspline), sd(bsinttrapezoidal), sd(bsintsimpson), sd(bstot)) ,
-                                    dsys=c(0, 0, 0, dsys), type=c("spline", "trapezoidal", "simpson", "average")))
+                                    dint=c(sd(bsintspline), sd(bsinttrapezoidal), sd(bsintsimpson), sdint) ,
+                                    dsys=c(0, 0, 0, dsys), pull=c(0, 0, 0, pulls[which.max(differences*erf(pulls/sqrt(2)))]), 
+                                    type=c("spline", "trapezoidal", "simpson", "average")))
 
   bsint[1, iz+1, ] <- bsintspline
   bsint[2, iz+1, ] <- bsinttrapezoidal
@@ -200,12 +208,21 @@ bsintsimpson <- apply(X=bsamples, MARGIN=1, FUN=simpson, xval=xval, continue = T
 meanint <- (meanintspline+meaninttrapezoidal+meanintsimpson)/3
 dtot <- sqrt((sd(bsintspline)^2 + sd(bsinttrapezoidal)^2 + sd(bsintsimpson)^2 + (meanint-meanintspline)^2 + (meanint-meaninttrapezoidal)^2 + (meanint-meaninttrapezoidal)^2)/3)
 bstot <- (bsintspline + bsinttrapezoidal + bsintsimpson)/3
-dsys <- sqrt(dtot^2 - sd(bstot)^2)
-
+  
+  sdint <- sd(bstot)
+  
+  ## P_ij=(O_i-O_j)/Delta_ij
+## Delta_ij=sd((bs_i+bs_j)/2)
+## Delta_sys=max_ij(|O_i-O_j|*erf(P_ij/sqrt(2)))
+differences <- c(meanintspline - meaninttrapezoidal, meaninttrapezoidal-meanintsimpson, meanintsimpson-meanintspline)
+  ddifferences <- c(sd((bsintspline+bsinttrapezoidal)/2), sd((bsintsimpson+bsinttrapezoidal)/2), sd((bsintspline+bsintsimpson)/2))
+  pulls <- differences / ddifferences
+  dsys <- max(differences*erf(pulls/sqrt(2)))
 
 resint <- rbind(resint,data.frame(iz=zmax+1, int=c(meanintspline, meaninttrapezoidal, meanintsimpson, meanint),
-                                  dint=c(sd(bsintspline), sd(bsinttrapezoidal), sd(bsintsimpson), sd(bstot)) ,
-                                  dsys=c(0, 0, 0, dsys), type=c("spline", "trapezoidal", "simpson", "average")))
+                                  dint=c(sd(bsintspline), sd(bsinttrapezoidal), sd(bsintsimpson), sdint) ,
+                                  dsys=c(0, 0, 0, dsys), pull=c(0, 0, 0, pulls[which.max(differences*erf(pulls/sqrt(2)))]), 
+                                  type=c("spline", "trapezoidal", "simpson", "average")))
 
 bsint[1, zmax+2, ] <- bsintspline
 bsint[2, zmax+2, ] <- bsinttrapezoidal

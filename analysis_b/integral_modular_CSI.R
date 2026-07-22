@@ -20,7 +20,9 @@ if (TRUE) {
     make_option(c("-e", "--error"), type = "character", default = "stat",
                 help = "index for bmass [default %default]"),
     make_option(c("-a", "--massfolder"), type = "character", default = "-1",
-                help = "location where data for mass is stored [default %default]")
+                help = "location where data for mass is stored [default %default]"),
+    make_option(c("-w", "--weightlist"), type = "character", default = "-1",
+                help = "weights to use for AIC average [default %default]")
 
   )
   parser <- OptionParser(usage = "%prog [options]", option_list = option_list)
@@ -52,12 +54,19 @@ erf <- function(x) 2 * pnorm(x * sqrt(2)) - 1
 ## read in data
 if(file.exists(sprintf("%s/%s_CSI_sigma_m%d_%s.csv", opt$folder, opt$mode, opt$bmass, errstring))) {
   res <- read.table(sprintf("%s/%s_CSI_sigma_m%d_%s.csv", opt$folder, opt$mode, opt$bmass, errstring), header=T)
-} else if (file.exists(sprintf("%s/%s_CSI_sigma_m%d_%s.csv", opt$folder, opt$mode, opt$bmass, errstring))) {
-  res <- read.table(sprintf("%s/%s_CSI_sigma_m%d_%s_cont.csv", opt$folder, opt$mode, opt$bmass, errstring), header=T)
+} else if (file.exists(sprintf("%s/%s_CSI_sigma_m%d_%s_smear.csv", opt$folder, opt$mode, opt$bmass, errstring))) {
+  res <- read.table(sprintf("%s/%s_CSI_sigma_m%d_%s_smear.csv", opt$folder, opt$mode, opt$bmass, errstring), header=T)
 } else stop("results table cannot be read")
 res <- res[res$kernel==opt$kernel, ]
+
+
+externalweights <- opt$weightlist!="-1"
+if(!externalweights) weightlist <- list()
+if(externalweights) weightlist <- readRDS(opt$weightlist)
+
 masses <- read.table(sprintf("%s/masseslimit.csv", opt$massfolder), header=T)
-resint <- data.frame(iz=c(), int=c(), dint=c(), dsys=c(), type=c())
+
+resint <- data.frame(iz=c(), int=c(), dint=c(), dsys=c(), pull=c(), type=c())
 bsint <- array(NA, dim=c(5, zmax+2, 1000))
 boot <- readRDS(sprintf("%s/%s_CSI_sigma_%s_m%d_%s.RDS", opt$folder, opt$mode, opt$kernel, opt$bmass, errstring))
 
@@ -120,14 +129,25 @@ for(iz in 0:zmax) {
                         replacelower=F, higherlimit = upperbound)
 
   meanint <- (meanintspline+meaninttrapezoidal+meanintsimpson)/3
-  dtot <- sqrt((sd(bsintspline)^2 + sd(bsinttrapezoidal)^2 + sd(bsintsimpson)^2 + (meanint-meanintspline)^2 + (meanint-meaninttrapezoidal)^2 + (meanint-meaninttrapezoidal)^2)/3)
   bstot <- (bsintspline + bsinttrapezoidal + bsintsimpson)/3
-  dsys <- sqrt(dtot^2 - sd(bstot)^2)
+  
+  sdint <- sd(bstot)
+  
+  ## P_ij=(O_i-O_j)/Delta_ij
+## Delta_ij=sd((bs_i+bs_j)/2)
+## Delta_sys=max_ij(|O_i-O_j|*erf(P_ij/sqrt(2)))
+differences <- c(meanintspline - meaninttrapezoidal, meaninttrapezoidal-meanintsimpson, meanintsimpson-meanintspline)
+  ddifferences <- c(sd((bsintspline+bsinttrapezoidal)/2), sd((bsintsimpson+bsinttrapezoidal)/2), sd((bsintspline+bsintsimpson)/2))
+  pulls <- differences / ddifferences
+  possiblesys <- differences*erf(pulls/sqrt(2))
+  if(!externalweights) weightlist[[iz+1]] <- which.max(possiblesys)
+  dsys <- possiblesys[weightlist[[iz+1]]]
 
 
   resint <- rbind(resint,data.frame(iz=iz, int=c(meanintspline, meaninttrapezoidal, meanintsimpson, meanint),
-                                    dint=c(sd(bsintspline), sd(bsinttrapezoidal), sd(bsintsimpson), sd(bstot)) ,
-                                    dsys=c(0, 0, 0, dsys), type=c("spline", "trapezoidal", "simpson", "average")))
+                                    dint=c(sd(bsintspline), sd(bsinttrapezoidal), sd(bsintsimpson), sdint) ,
+                                    dsys=c(0, 0, 0, dsys), pull=c(0, 0, 0, pulls[which.max(differences*erf(pulls/sqrt(2)))]), 
+                                    type=c("spline", "trapezoidal", "simpson", "average")))
 
   bsint[1, iz+1, ] <- bsintspline
   bsint[2, iz+1, ] <- bsinttrapezoidal
@@ -137,7 +157,6 @@ for(iz in 0:zmax) {
 }
 
 ## sum of all Z-components
-
 ## set boundaries, integral points
 
 yval <- c(0)
@@ -192,20 +211,35 @@ bsintsimpson <- apply(X=bsamples, MARGIN=1, FUN=simpson, xval=xval, continue = T
                       replacelower=F, higherlimit = upperbound)
 
 meanint <- (meanintspline+meaninttrapezoidal+meanintsimpson)/3
-dtot <- sqrt((sd(bsintspline)^2 + sd(bsinttrapezoidal)^2 + sd(bsintsimpson)^2 + (meanint-meanintspline)^2 + (meanint-meaninttrapezoidal)^2 + (meanint-meaninttrapezoidal)^2)/3)
 bstot <- (bsintspline + bsinttrapezoidal + bsintsimpson)/3
-dsys <- sqrt(dtot^2 - sd(bstot)^2)
+  
+sdint <- sd(bstot)
 
+## P_ij=(O_i-O_j)/Delta_ij
+## Delta_ij=sd((bs_i+bs_j)/2)
+## Delta_sys=max_ij(|O_i-O_j|*erf(P_ij/sqrt(2)))
+  differences <- c(meanintspline - meaninttrapezoidal, meaninttrapezoidal-meanintsimpson, meanintsimpson-meanintspline)
+  ddifferences <- c(sd((bsintspline+bsinttrapezoidal)/2), sd((bsintsimpson+bsinttrapezoidal)/2), sd((bsintspline+bsintsimpson)/2))
+  pulls <- differences / ddifferences
+  possiblesys <- differences*erf(pulls/sqrt(2))
+  if(!externalweights) weightlist[[zmax+2]] <- which.max(possiblesys)
+  dsys <- possiblesys[weightlist[[zmax+2]]]
 
 resint <- rbind(resint,data.frame(iz=zmax+1, int=c(meanintspline, meaninttrapezoidal, meanintsimpson, meanint),
-                                  dint=c(sd(bsintspline), sd(bsinttrapezoidal), sd(bsintsimpson), sd(bstot)) ,
-                                  dsys=c(0, 0, 0, dsys), type=c("spline", "trapezoidal", "simpson", "average")))
+                                  dint=c(sd(bsintspline), sd(bsinttrapezoidal), sd(bsintsimpson), sdint) ,
+                                  dsys=c(0, 0, 0, dsys), pull=c(0, 0, 0, pulls[which.max(differences*erf(pulls/sqrt(2)))]), 
+                                  type=c("spline", "trapezoidal", "simpson", "average")))
 
 bsint[1, zmax+2, ] <- bsintspline
 bsint[2, zmax+2, ] <- bsinttrapezoidal
 bsint[3, zmax+2, ] <- bsintsimpson
 bsint[4, zmax+2, ] <- bstot
 bsint[5, zmax+2, ] <- bstot + rnorm(1000, 0, dsys)
+
+print(dsys)
+print(sd(bstot))
+print(sd(bsint[5, zmax+2, ]))
+print(sqrt(sd(bsint[5, zmax+2, ])^2-sd(bsint[4, zmax+2, ])^2))
 
 ## save results
 write.table(resint, sprintf("%s/%s_CSI_integral_%s_m%d_%s_int.csv", opt$plotfolder, opt$mode, opt$kernel, opt$bmass, errstring), row.names=F)
