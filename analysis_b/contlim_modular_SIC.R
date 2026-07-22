@@ -10,6 +10,8 @@ if (TRUE) {
                 help = "mode: DG, DM, DM2 [default %default]"),
     make_option(c("-k", "--kernel"), type = "character", default = "aic",
                 help = "kernel [default %default]"),
+    make_option(c("-i", "--integraltype"), type = "character", default = "averagewithsyserr",
+                help = "type of integral [default %default]"),
     make_option(c("-f", "--folder"), type = "character", default = "-1",
                 help = "folder with results [default %default]"),
     make_option(c("-s", "--subfolder"), type = "character", default = "analyse/tables",
@@ -19,7 +21,7 @@ if (TRUE) {
     make_option(c("-b", "--bmass"), type = "integer", default = "-1",
                 help = "index for bmass [default %default]"),
     make_option(c("-e", "--error"), type = "character", default = "stat",
-                help = "index for bmass [default %default]")
+                help = "errors included in data [default %default]")
 
   )
   parser <- OptionParser(usage = "%prog [options]", option_list = option_list)
@@ -41,20 +43,54 @@ if(opt$mode=="DG") {
   zmax <- 4
 }
 
+integraltypes <- c("spline", "trapezoidal", "simpson", "average", "averagewithsyserr")
+stopifnot(opt$integraltype %in% integraltypes)
 
-B64 <- readRDS(sprintf("%s/B64/%s/%s_SIC_integral_%s_m%d_%s.RDS", opt$folder, opt$subfolder, opt$mode, opt$kernel, opt$bmass, errstring))
-nboot <- dim(B64)[2]
+## the results for integraltypes spline, trapezoid and simpson are stored together, so have to be extracted differently
+additionalint <- opt$integraltype %in% c("spline", "trapezoidal", "simpson")
+if(additionalint & grepl("int", errstring)) stop("there can be no systematic error for one integral type")
 
-C80 <- readRDS(sprintf("%s/C80/%s/%s_SIC_integral_%s_m%d_%s.RDS", opt$folder, opt$subfolder, opt$mode, opt$kernel, opt$bmass, errstring))
-stopifnot(nboot == dim(C80)[2])
 
-D96 <- readRDS(sprintf("%s/D96/%s/%s_SIC_integral_%s_m%d_%s.RDS", opt$folder, opt$subfolder, opt$mode, opt$kernel, opt$bmass, errstring))
-stopifnot(nboot == dim(D96)[2])
+if(additionalint) {
+    B64 <- readRDS(sprintf("%s/B64/%s/%s_SIC_integral_%s_m%d_%s_all.RDS", opt$folder, opt$subfolder, opt$mode, opt$kernel, opt$bmass, errstring))[which(opt$integraltype==integraltypes),,]
+    nboot <- dim(B64)[2]
+    
+    C80 <- readRDS(sprintf("%s/C80/%s/%s_SIC_integral_%s_m%d_%s_all.RDS", opt$folder, opt$subfolder, opt$mode, opt$kernel, opt$bmass, errstring))[which(opt$integraltype==integraltypes),,]
+    stopifnot(nboot == dim(C80)[2])
+    
+    D96 <- readRDS(sprintf("%s/D96/%s/%s_SIC_integral_%s_m%d_%s_all.RDS", opt$folder, opt$subfolder, opt$mode, opt$kernel, opt$bmass, errstring))[which(opt$integraltype==integraltypes),,]
+    stopifnot(nboot == dim(D96)[2])
+} else {
 
-B64_table <- read.table(sprintf("%s/B64/%s/%s_SIC_integral_%s_m%d_%s.csv", opt$folder, opt$subfolder, opt$mode, opt$kernel, opt$bmass, errstring), header=T)
-C80_table <- read.table(sprintf("%s/C80/%s/%s_SIC_integral_%s_m%d_%s.csv", opt$folder, opt$subfolder, opt$mode, opt$kernel, opt$bmass, errstring), header=T)
-D96_table <- read.table(sprintf("%s/D96/%s/%s_SIC_integral_%s_m%d_%s.csv", opt$folder, opt$subfolder, opt$mode, opt$kernel, opt$bmass, errstring), header=T)
+    B64 <- readRDS(sprintf("%s/B64/%s/%s_SIC_integral_%s_m%d_%s.RDS", opt$folder, opt$subfolder, opt$mode, opt$kernel, opt$bmass, errstring))
+    nboot <- dim(B64)[2]
+    
+    C80 <- readRDS(sprintf("%s/C80/%s/%s_SIC_integral_%s_m%d_%s.RDS", opt$folder, opt$subfolder, opt$mode, opt$kernel, opt$bmass, errstring))
+    stopifnot(nboot == dim(C80)[2])
+    
+    D96 <- readRDS(sprintf("%s/D96/%s/%s_SIC_integral_%s_m%d_%s.RDS", opt$folder, opt$subfolder, opt$mode, opt$kernel, opt$bmass, errstring))
+    stopifnot(nboot == dim(D96)[2])
+}
 
+## table with mean values only has type average with stat and sys error, no separate line for sys.
+tableintegral <- opt$integraltype
+if(opt$integraltype=="averagewithsyserr") tableintegral <- "average"
+
+if(file.exists(sprintf("%s/B64/%s/%s_SIC_integral_%s_m%d_%s.csv", opt$folder, opt$subfolder, opt$mode, opt$kernel, opt$bmass, errstring))) {
+    B64_table <- read.table(sprintf("%s/B64/%s/%s_SIC_integral_%s_m%d_%s.csv", opt$folder, opt$subfolder, opt$mode, opt$kernel, opt$bmass, errstring), header=T)
+    C80_table <- read.table(sprintf("%s/C80/%s/%s_SIC_integral_%s_m%d_%s.csv", opt$folder, opt$subfolder, opt$mode, opt$kernel, opt$bmass, errstring), header=T)
+    D96_table <- read.table(sprintf("%s/D96/%s/%s_SIC_integral_%s_m%d_%s.csv", opt$folder, opt$subfolder, opt$mode, opt$kernel, opt$bmass, errstring), header=T)
+} else if (file.exists(sprintf("%s/B64/%s/%s_SIC_integral_%s_m%d_%s_int.csv", opt$folder, opt$subfolder, opt$mode, opt$kernel, opt$bmass, errstring))) {
+    B64_table <- read.table(sprintf("%s/B64/%s/%s_SIC_integral_%s_m%d_%s_int.csv", opt$folder, opt$subfolder, opt$mode, opt$kernel, opt$bmass, errstring), header=T)
+    C80_table <- read.table(sprintf("%s/C80/%s/%s_SIC_integral_%s_m%d_%s_int.csv", opt$folder, opt$subfolder, opt$mode, opt$kernel, opt$bmass, errstring), header=T)
+    D96_table <- read.table(sprintf("%s/D96/%s/%s_SIC_integral_%s_m%d_%s_int.csv", opt$folder, opt$subfolder, opt$mode, opt$kernel, opt$bmass, errstring), header=T)
+} else stop("results table cannot be read")
+
+
+
+B64_table <- B64_table[B64_table$type==tableintegral, ]
+C80_table <- C80_table[C80_table$type==tableintegral, ]
+D96_table <- D96_table[D96_table$type==tableintegral, ]
 
 reslist <- list()
 reslistlinear <- list()
@@ -66,12 +102,15 @@ restable <- data.frame(iz=c(), DG=c(), dDG=c(), dsys=c(), dtot=c(), pull=c(), cu
 fitfn1 <- function(pars, x, boot.r, ...) pars[1] + x*pars[2]
 fitfn2 <- function(pars, x, boot.r, ...) pars[1] + x*0
 
-pdf(sprintf("%s/%s_SIC_contlimit_%s_m%d_%s.pdf", opt$folder, opt$mode, opt$kernel, opt$bmass, errstring))
+pdf(sprintf("%s/%s_SIC_contlimit_%s_%s_m%d_%s.pdf", opt$plotfolder, opt$mode, opt$kernel, opt$integraltype, opt$bmass, errstring))
 
-afm <- c(0.07957, 0.06821, 0.05692)
+afm <- c(0.07957, 0.06821, 0.05692) ## superseeded, from 2206.15084
+afm <- c(0.07948, 0.06819, 0.05685) ## from 2411.08852
+dafm <- c(1.1, 1.4, 0.9)*1e-4
+afmbootsamples <- parametric.bootstrap(1000, afm, dafm, 1234)^2
 for(iz in 0:(zmax+1)) {
 
-  boots <- array(c(B64[iz+1, ], C80[iz+1, ], D96[iz+1, ]), dim=c(nboot, 3))
+  boots <- array(c(B64[iz+1, ], C80[iz+1, ], D96[iz+1, ], afmbootsamples), dim=c(nboot, 6))
   y <- c(B64_table$int[B64_table$iz==iz], C80_table$int[C80_table$iz==iz], D96_table$int[D96_table$iz==iz])
 
   # perform fits and assign AIC weights
@@ -152,7 +191,7 @@ for(iz in 0:(zmax+1)) {
                  dsys=0, dtot=fit1$se[1], iz=iz)
   reslistlinear[[paste0("iz", iz)]] <- reslin
   reslin <- list(mean=fit1$t0[1], sd=fit1$se[1], boot=fit1$t[, 1] + rnorm(nboot, 0, dsyslin), pull=pulllin, cutoff=(fit1$t0[1]-fit1$y[3])/fit1$t0[1],
-                 dsys=dsyslin, dtot=sqrt(fit1$se[1]^2+dsyslin^2), iz=iz)
+                 dsys=dsyslin, dtot=sqrt(fit1$se[1]^2+dsyslin^2), iz=iz, fit=fit1)
   reslistlinearsys[[paste0("iz", iz)]] <- reslin
 
   #~     res <- data.frame(iz=c(), isigma=c(), DG=c(), dDG=c(), dsys=c(), dtot=c(), pull=c(), cutoff=c(), extrapolation=c())
@@ -161,8 +200,8 @@ for(iz in 0:(zmax+1)) {
   restable <- rbind(restable, data.frame(iz=iz, DG=fit1$t0[1], dDG=fit1$se[1], dsys=dsyslin, dtot=sqrt(fit1$se[1]^2+dsyslin^2), pull=pulllin, cutoff=(fit1$t0[1]-fit1$y[3])/fit1$t0[1], extrapolation="linear"))
 }
 
-saveRDS(object=reslist,          file=sprintf("%s/%s_SIC_contlimit_%s_m%d_%s_AIC.RDS",         opt$plotfolder, opt$mode, opt$kernel, opt$bmass, errstring))
-saveRDS(object=reslistlinear,    file=sprintf("%s/%s_SIC_contlimit_%s_m%d_%s_linear.RDS",      opt$plotfolder, opt$mode, opt$kernel, opt$bmass, errstring))
-saveRDS(object=reslistsys,       file=sprintf("%s/%s_SIC_contlimit_%s_m%d_%s_cont_AIC.RDS",    opt$plotfolder, opt$mode, opt$kernel, opt$bmass, errstring))
-saveRDS(object=reslistlinearsys, file=sprintf("%s/%s_SIC_contlimit_%s_m%d_%s_cont_linear.RDS", opt$plotfolder, opt$mode, opt$kernel, opt$bmass, errstring))
-write.table(restable,            file=sprintf("%s/%s_SIC_contlimit_%s_m%d_%s_cont.csv",        opt$plotfolder, opt$mode, opt$kernel, opt$bmass, errstring))
+saveRDS(object=reslist,          file=sprintf("%s/%s_SIC_contlimit_%s_%s_m%d_%s_AIC.RDS",         opt$plotfolder, opt$mode, opt$kernel, opt$integraltype, opt$bmass, errstring))
+saveRDS(object=reslistlinear,    file=sprintf("%s/%s_SIC_contlimit_%s_%s_m%d_%s_linear.RDS",      opt$plotfolder, opt$mode, opt$kernel, opt$integraltype, opt$bmass, errstring))
+saveRDS(object=reslistsys,       file=sprintf("%s/%s_SIC_contlimit_%s_%s_m%d_%s_cont_AIC.RDS",    opt$plotfolder, opt$mode, opt$kernel, opt$integraltype, opt$bmass, errstring))
+saveRDS(object=reslistlinearsys, file=sprintf("%s/%s_SIC_contlimit_%s_%s_m%d_%s_cont_linear.RDS", opt$plotfolder, opt$mode, opt$kernel, opt$integraltype, opt$bmass, errstring))
+write.table(restable,            file=sprintf("%s/%s_SIC_contlimit_%s_%s_m%d_%s_cont.csv",        opt$plotfolder, opt$mode, opt$kernel, opt$integraltype, opt$bmass, errstring))

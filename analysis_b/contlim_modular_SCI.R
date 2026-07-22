@@ -56,14 +56,14 @@ D96 <- readRDS(sprintf("%s/D96/analyse/tables/%s_SCI_sigma_%s_m%d_%s.RDS", opt$f
 stopifnot(ntheta == dim(D96)[2])
 stopifnot(nboot == dim(D96)[3])
 
-if(file.exists(sprintf("%s/B64/analyse/tables/%s_SCI_sigma_m%d_%s.csv", opt$folder, opt$mode, opt$bmass, opt$error))) {
-B64_table <- read.table(sprintf("%s/B64/analyse/tables/%s_SCI_sigma_m%d_%s.csv", opt$folder, opt$mode, opt$bmass, opt$error), header=T)
-C80_table <- read.table(sprintf("%s/C80/analyse/tables/%s_SCI_sigma_m%d_%s.csv", opt$folder, opt$mode, opt$bmass, opt$error), header=T)
-D96_table <- read.table(sprintf("%s/D96/analyse/tables/%s_SCI_sigma_m%d_%s.csv", opt$folder, opt$mode, opt$bmass, opt$error), header=T)
-} else if(file.exists(sprintf("%s/B64/analyse/tables/%s_SCI_sigma_m%d_%s_smear.csv", opt$folder, opt$mode, opt$bmass, opt$error))) {
-B64_table <- read.table(sprintf("%s/B64/analyse/tables/%s_SCI_sigma_m%d_%s_smear.csv", opt$folder, opt$mode, opt$bmass, opt$error), header=T)
-C80_table <- read.table(sprintf("%s/C80/analyse/tables/%s_SCI_sigma_m%d_%s_smear.csv", opt$folder, opt$mode, opt$bmass, opt$error), header=T)
-D96_table <- read.table(sprintf("%s/D96/analyse/tables/%s_SCI_sigma_m%d_%s_smear.csv", opt$folder, opt$mode, opt$bmass, opt$error), header=T)
+if(file.exists(sprintf("%s/B64/analyse/tables_correctafm/%s_SCI_sigma_m%d_%s.csv", opt$folder, opt$mode, opt$bmass, opt$error))) {
+B64_table <- read.table(sprintf("%s/B64/analyse/tables_correctafm/%s_SCI_sigma_m%d_%s.csv", opt$folder, opt$mode, opt$bmass, opt$error), header=T)
+C80_table <- read.table(sprintf("%s/C80/analyse/tables_correctafm/%s_SCI_sigma_m%d_%s.csv", opt$folder, opt$mode, opt$bmass, opt$error), header=T)
+D96_table <- read.table(sprintf("%s/D96/analyse/tables_correctafm/%s_SCI_sigma_m%d_%s.csv", opt$folder, opt$mode, opt$bmass, opt$error), header=T)
+} else if(file.exists(sprintf("%s/B64/analyse/tables_correctafm/%s_SCI_sigma_m%d_%s_smear.csv", opt$folder, opt$mode, opt$bmass, opt$error))) {
+B64_table <- read.table(sprintf("%s/B64/analyse/tables_correctafm/%s_SCI_sigma_m%d_%s_smear.csv", opt$folder, opt$mode, opt$bmass, opt$error), header=T)
+C80_table <- read.table(sprintf("%s/C80/analyse/tables_correctafm/%s_SCI_sigma_m%d_%s_smear.csv", opt$folder, opt$mode, opt$bmass, opt$error), header=T)
+D96_table <- read.table(sprintf("%s/D96/analyse/tables_correctafm/%s_SCI_sigma_m%d_%s_smear.csv", opt$folder, opt$mode, opt$bmass, opt$error), header=T)
 } else stop("results tables could not be read in")
 
 B64_table <- B64_table[B64_table$kernel==opt$kernel, ]
@@ -83,12 +83,15 @@ fitfn2 <- function(pars, x, boot.r, ...) pars[1] + x*0
 
 pdf(sprintf("%s/%s_SCI_contlimit_%s_m%d_%s_cont.pdf", opt$plotfolder, opt$mode, opt$kernel, opt$bmass, opt$error))
 
-afm <- c(0.07957, 0.06821, 0.05692)
+afm <- c(0.07957, 0.06821, 0.05692) ## superseeded, from 2206.15084
+afm <- c(0.07948, 0.06819, 0.05685) ## from 2411.08852
+dafm <- c(1.1, 1.4, 0.9)*1e-4
+afmbootsamples <- parametric.bootstrap(1000, afm, dafm, 1234)^2
 thetas <- c(1,2,3,4,5,6,7,8,9,9.5)
 for(theta in thetas) {
   for(iz in 0:zmax) {
     
-    boots <- array(c(B64[iz+1, which(theta==thetas), ], C80[iz+1, which(theta==thetas), ], D96[iz+1, which(theta==thetas), ]), dim=c(nboot, 3))
+    boots <- array(c(B64[iz+1, which(theta==thetas), ], C80[iz+1, which(theta==thetas), ], D96[iz+1, which(theta==thetas), ], afmbootsamples), dim=c(nboot, 6))
     y <- c(B64_table$DG[B64_table$iz==iz & B64_table$theta==theta], C80_table$DG[C80_table$iz==iz & C80_table$theta==theta], D96_table$DG[D96_table$iz==iz & D96_table$theta==theta])
     
     # perform fits and assign AIC weights
@@ -168,7 +171,7 @@ for(theta in thetas) {
                    dsys=0, dtot=fit1$se[1], iz=iz)
     reslistlinear[[paste0("iz", iz, "theta", theta)]] <- reslin
     reslin <- list(mean=fit1$t0[1], sd=fit1$se[1], boot=fit1$t[, 1] + rnorm(nboot, 0, dsyslin), pull=pulllin, cutoff=(fit1$t0[1]-fit1$y[3])/fit1$t0[1], 
-                   dsys=dsyslin, dtot=sqrt(fit1$se[1]^2+dsyslin^2), iz=iz)
+                   dsys=dsyslin, dtot=sqrt(fit1$se[1]^2+dsyslin^2), iz=iz, fit=fit1)
     reslistlinearsys[[paste0("iz", iz, "theta", theta)]] <- reslin
     
     

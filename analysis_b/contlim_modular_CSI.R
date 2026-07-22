@@ -73,7 +73,10 @@ fitfn2 <- function(pars, x, boot.r, ...) pars[1] + x*0
 
 pdf(sprintf("%s/%s_CSI_contlimit_%s_m%d_%s_%s_cont.pdf", opt$plotfolder, opt$mode, opt$kernel, opt$bmass, opt$momentum, opt$error))
 
-afm <- c(0.07957, 0.06821, 0.05692)
+afm <- c(0.07957, 0.06821, 0.05692) ## superseeded, from 2206.15084
+afm <- c(0.07948, 0.06819, 0.05685) ## from 2411.08852
+dafm <- c(1.1, 1.4, 0.9)*1e-4
+afmbootsamples <- parametric.bootstrap(1000, afm, dafm, 1234)^2
 for(iz in 0:zmax) {
   for(isigma in 0:(nsigma-1)) {
     
@@ -82,7 +85,7 @@ for(iz in 0:zmax) {
                 D96_table$eps[D96_table$iz==iz & D96_table$ieps==isigma] * D96_table$mass[D96_table$iz==iz & D96_table$ieps==isigma]) / afm * 0.1973269804
     stopifnot(sd(sigmas) < 0.01*mean(sigmas))
     sigma <- mean(sigmas)
-    boots <- array(c(B64[iz+1, isigma+1, ], C80[iz+1, isigma+1, ], D96[iz+1, isigma+1, ]), dim=c(nboot, 3))
+    boots <- array(c(B64[iz+1, isigma+1, ], C80[iz+1, isigma+1, ], D96[iz+1, isigma+1, ], afmbootsamples), dim=c(nboot, 6))
     y <- c(B64_table$rho[B64_table$iz==iz & B64_table$ieps==isigma], C80_table$rho[C80_table$iz==iz & C80_table$ieps==isigma], D96_table$rho[D96_table$iz==iz & D96_table$ieps==isigma])
     
     # perform fits and assign AIC weights
@@ -159,10 +162,10 @@ for(iz in 0:zmax) {
     dsyslin <- abs(fit1$t0[1]-fit1$y[3])*erf(abs(pulllin)/sqrt(2))
     
     reslin <- list(mean=fit1$t0[1], sd=fit1$se[1], boot=fit1$t[, 1], pull=0, cutoff=(fit1$t0[1]-fit1$y[3])/fit1$t0[1], 
-                dsys=0, dtot=fit1$se[1], iz=iz, isigma=isigma)
+                dsys=0, dtot=fit1$se[1], iz=iz, isigma=isigma, slope=fit1$t0[2], dslope=fit1$se[2])
     reslistlinear[[paste0("iz", iz, "sigma", isigma)]] <- reslin
     reslin <- list(mean=fit1$t0[1], sd=fit1$se[1], boot=fit1$t[, 1] + rnorm(nboot, 0, dsyslin), pull=pulllin, cutoff=(fit1$t0[1]-fit1$y[3])/fit1$t0[1], 
-                dsys=dsyslin, dtot=sqrt(fit1$se[1]^2+dsyslin^2), iz=iz, isigma=isigma)
+                dsys=dsyslin, dtot=sqrt(fit1$se[1]^2+dsyslin^2), iz=iz, isigma=isigma, slope=fit1$t0[2], dslope=fit1$se[2], fit=fit1)
     reslistlinearsys[[paste0("iz", iz, "sigma", isigma)]] <- reslin
     
 #~     res <- data.frame(iz=c(), isigma=c(), DG=c(), dDG=c(), dsys=c(), dtot=c(), pull=c(), cutoff=c(), extrapolation=c())
