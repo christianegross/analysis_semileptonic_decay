@@ -16,7 +16,9 @@ if (TRUE) {
     make_option(c("-b", "--bmass"), type = "integer", default = "-1",
                 help = "index for bmass [default %default]"),
     make_option(c("-e", "--error"), type = "character", default = "stat",
-                help = "index for bmass [default %default]")
+                help = "index for bmass [default %default]"),
+    make_option(c("-w", "--weightlist"), type = "character", default = "-1",
+                help = "weights to use for AIC average [default %default]")
     
   )
   parser <- OptionParser(usage = "%prog [options]", option_list = option_list)
@@ -77,6 +79,10 @@ bootsaic_sys <- array(NA, dim=c(3, 10, 1000))
 
 pdf(sprintf("%s/%s_CSI_sigma_m%d_%s_smear.pdf", opt$plotfolder, opt$mode, opt$bmass, errstring), title="")
 
+externalweights <- opt$weightlist!="-1"
+if(!externalweights) weightlist <- list()
+if(externalweights) weightlist <- readRDS(opt$weightlist)
+
 for(theta in thetas) {
   if(file.exists(sprintf("%s/%s_CSI_contlimit_%s_m%d_th%s_%s.csv", opt$folder, opt$mode, "sigmoid", opt$bmass, as.character(theta), errstring))) {
     tablesigmoid <- read.table(sprintf("%s/%s_CSI_contlimit_%s_m%d_th%s_%s.csv", opt$folder, opt$mode, "sigmoid", opt$bmass, as.character(theta), errstring), header=T)
@@ -119,6 +125,9 @@ for(theta in thetas) {
       exp(-0.5*(x$chisqr + 2*length(x$par.guess) - length(x$x)))
     })
     weights <- weights/sum(weights)
+    
+    if(!externalweights) weightlist[[paste0("th", theta, "iz", iz)]] <- weights
+    if(externalweights) weights <- weightlist[[paste0("th", theta, "iz", iz)]]
     
     average <- sum(sapply(listfits, function(x) x$t0[1])*weights)
     averageboot <- apply(sapply(listfits, function(x) x$t[, 1]), 1, function(x) sum(x*weights))
@@ -173,9 +182,12 @@ for(theta in thetas) {
     bootsaic[iz+1, which(theta==thetas), ] <- averageboot
     bootsaic_sys[iz+1, which(theta==thetas), ] <- averageboot + rnorm(1000, 0, dsyserf)
     
+    saveRDS(list(fitsigmoid=fitsigmoid, fiterf=fiterf, fitcomb=fitcomb, average=average, averagese=averagese, weights=weights, dsysaic=dsysaic), sprintf("%s/fits/%s_CSI_sigma_%s_m%d_%s_th%s_iz%d_fits.RDS", opt$plotfolder, opt$mode, "sigmoid", opt$bmass, paste0(errstring, ifelse(externalweights, "_ext", "")), as.character(theta), iz))
+    
   }
   
 }
+if(externalweights) errstring <- paste0(errstring, "_ext")
 saveRDS(bootssigmoid, file=sprintf("%s/%s_CSI_sigma_%s_m%d_%s.RDS", opt$plotfolder, opt$mode, "sigmoid", opt$bmass, errstring))
 saveRDS(bootssigmoid_sys, file=sprintf("%s/%s_CSI_sigma_%s_m%d_%s_smear.RDS", opt$plotfolder, opt$mode, "sigmoid", opt$bmass, errstring))
 saveRDS(bootserf, file=sprintf("%s/%s_CSI_sigma_%s_m%d_%s.RDS", opt$plotfolder, opt$mode, "erf", opt$bmass, errstring))
@@ -185,3 +197,5 @@ saveRDS(bootscomb_sys, file=sprintf("%s/%s_CSI_sigma_%s_m%d_%s_smear.RDS", opt$p
 saveRDS(bootsaic, file=sprintf("%s/%s_CSI_sigma_%s_m%d_%s.RDS", opt$plotfolder, opt$mode, "aic", opt$bmass, errstring))
 saveRDS(bootsaic_sys, file=sprintf("%s/%s_CSI_sigma_%s_m%d_%s_smear.RDS", opt$plotfolder, opt$mode, "aic", opt$bmass, errstring))
 write.table(res, sprintf("%s/%s_CSI_sigma_m%d_%s_smear.csv", opt$plotfolder, opt$mode, opt$bmass, errstring), row.names=F)
+
+if(!externalweights) saveRDS(weightlist, file=sprintf("%s/%s_CSI_sigma_%s_m%d_%s_weightlist.RDS", opt$plotfolder, opt$mode, "aic", opt$bmass, errstring))

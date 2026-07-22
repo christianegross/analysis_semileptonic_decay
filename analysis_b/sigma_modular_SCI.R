@@ -43,7 +43,8 @@ if(opt$mode=="DG") {
 }
 
 
-afm <- c(0.07957, 0.06821, 0.05692)
+afm <- c(0.07957, 0.06821, 0.05692) ## superseeded, from 2206.15084
+afm <- c(0.07948, 0.06819, 0.05685) ## from 2411.08852
 ensembles <- c("cB211.07.64", "cC211.06.80", "cD211.054.96")
 stopifnot(opt$ensemble %in% ensembles)
 afm <- afm[which(opt$ensemble == ensembles)]
@@ -172,6 +173,7 @@ for(theta in thetas) {
     bootscomb_sys[iz+1, which(theta==thetas), ] <- fitcomb$t[, 1] + rnorm(1000, 0, dsyscomb)
     bootsaic[iz+1, which(theta==thetas), ] <- averageboot
     bootsaic_sys[iz+1, which(theta==thetas), ] <- averageboot + rnorm(1000, 0, dsyserf)
+    saveRDS(list(fitsigmoid=fitsigmoid, fiterf=fiterf, fitcomb=fitcomb, average=average, averagese=averagese, weights=weights, dsysaic=dsysaic), sprintf("%s/fits/%s_SCI_sigma_%s_m%d_%s_th%s_iz%d_fits.RDS", opt$plotfolder, opt$mode, "sigmoid", opt$bmass, errstring, as.character(theta), iz))
     
   }
   
